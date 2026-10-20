@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Neon Engine — example</title>
+  <link rel="stylesheet" href="../hud.css" />
+  <script type="importmap">
+  { "imports": { "three": "../three.module.js" } }
+  </script>
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;background:#070a12;color:#e8f1ff;
+      font:14px/1.5 system-ui,sans-serif}
+    canvas{position:fixed;inset:0;display:block}
+    #overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:30;
+      background:rgba(6,10,18,.72)}
+    #overlay.hidden{display:none}
+    #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+      z-index:40;background:#070a12}
+    #loading.done{opacity:0;pointer-events:none;transition:opacity .4s}
+    .load-bar{width:220px;height:3px;background:rgba(255,255,255,.12);border-radius:2px;overflow:hidden}
+    .load-bar i{display:block;height:100%;width:40%;background:#38f2c8;animation:lb 1.1s infinite}
+    @keyframes lb{0%{transform:translateX(-100%)}100%{transform:translateX(320%)}}
+    .load-fail{max-width:520px;padding:24px 26px;background:rgba(20,10,16,.92);
+      border:1px solid rgba(255,90,122,.45);border-radius:12px}
+    .load-fail h2{margin:0 0 10px;font-size:16px;letter-spacing:.1em;color:#ff8ab4}
+    .load-fail p{margin:0;font-size:13px;line-height:1.6}
+    .load-fail code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;color:#38f2c8}
+    .panel{text-align:center}
+    .panel h1{font-size:30px;letter-spacing:.2em;margin:0 0 6px}
+    .author{font-size:11px;letter-spacing:.16em;color:#38f2c8;margin:0 0 10px}
+    .hint{color:#8ba0bb;font-size:12px;margin:0 0 18px}
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="loading"><div class="load-bar"><i></i></div><div>GENERATING CITY…</div></div>
+
+  <script>
+  /* Preflight + boot watchdog.
+     The bundle is a classic script, so it loads from file:// as well as over
+     HTTP — double-clicking index.html works. What this catches is the rest:
+     a browser without WebGL, and a bundle that never executed (missing file,
+     or a browser policy that blocked it). Either way you get a plain
+     explanation instead of a loading bar that never ends. */
+  (function () {
+    function fail(title, body) {
+      var el = document.getElementById('loading');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'loading';
+        document.body.appendChild(el);
+      }
+      el.classList.remove('done');
+      el.innerHTML = '<div class="load-fail"><h2>' + title + '</h2><p>' + body + '</p></div>';
+    }
+    window.__bootFail = fail;
+
+    try {
+      var c = document.createElement('canvas');
+      if (!(c.getContext('webgl2') || c.getContext('webgl'))) throw new Error('no WebGL context');
+    } catch (e) {
+      return fail('WebGL is unavailable',
+        'This game needs WebGL. Try another browser, or enable hardware acceleration in ' +
+        'your browser settings.<br><br><code>' + String((e && e.message) || e) + '</code>');
+    }
+
+    /* If the bundle never ran, say so rather than spinning forever. */
+    window.__bootWatch = setTimeout(function () {
+      if (window.__game && window.__game.world) return;      // fine, just slow
+      var el = document.getElementById('loading');
+      if (!el || el.classList.contains('done')) return;
+      fail('Could not start',
+        'The game script did not finish loading. Check that every file from the zip is ' +
+        'in the same folder and that <code>*.game.js</code> is present. Opening the ' +
+        'browser console (F12) will show the exact error.');
+    }, 20000);
+  })();
+  </script>
+
+  <div id="overlay">
+    <div class="panel">
+      <h1>EXAMPLE GAME</h1>
+      <p class="author">by Dr. Sohil Momin</p>
+      <p class="hint">WASD move · mouse look · click fire · E use · M map · P progress</p>
+      <button id="playbtn" class="btn">CLICK TO PLAY</button>
+    </div>
+  </div>
+  <script type="module" src="./game.js"></script>
+</body>
+</html>

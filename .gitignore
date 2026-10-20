@@ -1,0 +1,7 @@
+# build output and local artefacts
+*.zip
+_min/
+_build/
+shot-*.png
+node_modules/
+.DS_Store

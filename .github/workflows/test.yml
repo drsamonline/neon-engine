@@ -1,0 +1,35 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  headless:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Chromium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser || sudo apt-get install -y chromium
+          which chromium-browser || which chromium
+
+      - name: Install puppeteer-core
+        run: npm install --no-save puppeteer-core
+
+      - name: Syntax check every module
+        run: |
+          for f in *.js; do node --check "$f"; done
+
+      - name: Headless smoke test
+        env:
+          CHROME_PATH: /usr/bin/chromium-browser
+        run: node tests/smoke.cjs
