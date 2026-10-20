@@ -22,13 +22,17 @@ export class Store {
       <div class="shop-head"><span id="shop-title">MERCHANT</span>
         <span id="shop-coins">◈ 0</span></div>
       <div id="shop-items" class="shop-items"></div>
-      <div class="shop-foot"><button id="shop-close">CLOSE (E)</button></div>
+      <div class="shop-hint">↑ ↓ choose &nbsp;·&nbsp; Enter buy &nbsp;·&nbsp; Esc close &nbsp;·&nbsp; or click</div>
+      <div class="shop-foot"><button id="shop-close">CLOSE</button></div>
     </div>`;
     document.body.appendChild(el);
     this.el = el;
     this.itemsEl = el.querySelector('#shop-items');
     this.coinsEl = el.querySelector('#shop-coins');
     el.querySelector('#shop-close').addEventListener('click', () => this.close());
+    // keyboard access — the shop must be usable without a mouse
+    el.tabIndex = -1;
+    el.addEventListener('keydown', (e) => this._onKey(e));
   }
 
   _buildStall() {
@@ -80,7 +84,39 @@ export class Store {
   show(progression) {
     this.open = true;
     this.el.classList.remove('hidden');
+    this.sel = 0;
     this._render(progression);
+    this._focusSel();
+    // so the panel can receive arrow keys without a mouse at all
+    try { this.el.focus({ preventScroll: true }); } catch (_) { this.el.focus(); }
+  }
+
+  /* ---- keyboard buying: arrows to move, Enter to buy, Esc to leave ---- */
+  _rows() {
+    return [...this.el.querySelectorAll('.shop-row, .shop-buy')].map((el) => el.closest('.shop-row') || el)
+      .filter((el, i, a) => a.indexOf(el) === i);
+  }
+  _focusSel() {
+    const rows = this._rows();
+    if (!rows.length) return;
+    this.sel = Math.max(0, Math.min(rows.length - 1, this.sel | 0));
+    rows.forEach((r, i) => r.classList.toggle('sel', i === this.sel));
+    const r = rows[this.sel];
+    if (r && r.scrollIntoView) r.scrollIntoView({ block: 'nearest' });
+  }
+  _buyRow(row) {
+    if (!row) return;
+    const btn = row.querySelector ? row.querySelector('.shop-buy') : null;
+    if (btn) btn.click();
+  }
+  _onKey(e) {
+    if (!this.open) return;
+    const k = e.code;
+    if (k === 'ArrowDown' || k === 'KeyS') { this.sel++; this._focusSel(); e.preventDefault(); }
+    else if (k === 'ArrowUp' || k === 'KeyW') { this.sel--; this._focusSel(); e.preventDefault(); }
+    else if (k === 'Enter' || k === 'Space') {
+      const rows = this._rows(); this._buyRow(rows[this.sel]); e.preventDefault();
+    } else if (k === 'Escape') { this.close(); e.preventDefault(); }
   }
   close() { this.open = false; this.el.classList.add('hidden'); }
 
@@ -111,7 +147,7 @@ export class Store {
     for (const id of ['smg', 'shotgun', 'rifle', 'sniper']) {
       const w = WEAPONS[id];
       if (!progression.unlocked.has(id)) {
-        items.push({ key: 'w_' + id, label: w.name, sub: `${RARITY[w.rarity].name} weapon • unlock Lv${w.unlock}`, price: w.price, kind: 'weapon', rarity: w.rarity });
+        items.push({ key: 'w_' + id, wid: id, label: w.name, sub: `${RARITY[w.rarity].name} weapon • unlock Lv${w.unlock}`, price: w.price, kind: 'weapon', rarity: w.rarity });
       }
     }
     // workbench: upgrade the weapon you are currently holding

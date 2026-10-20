@@ -434,3 +434,6 @@ body.one-handed #prompt{bottom:210px}
   #objective{font-size:11px}
 }
 .wp-lbl{color:#ffd23a;letter-spacing:.14em;font-size:10px;opacity:.9}
+.shop-row.sel, .shop-row:hover{background:rgba(56,242,200,.13);outline:1px solid rgba(56,242,200,.5)}
+#shop:focus{outline:none}
+.shop-hint{margin-top:8px;font-size:11px;letter-spacing:.06em;color:#8ba0bb;text-align:center}

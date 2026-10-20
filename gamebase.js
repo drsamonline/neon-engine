@@ -169,7 +169,7 @@ export class GameBase {
     this.director = new Director(this.scene, this.world, {
       pool: this.cfg.pool ?? ['walker', 'runner'],
       maxAlive: this.cfg.maxAlive ?? 14,
-      autoSpawn: this.cfg.autoSpawn ?? true,
+      autoSpawn: this.cfg.mode ? false : (this.cfg.autoSpawn ?? true),
       spawnInterval: this.cfg.spawnInterval ?? 2.2,
     });
     this.store = new Store(this.scene, this.world, this.audio);
@@ -589,7 +589,11 @@ export class GameBase {
   _onBuy(item) {
     const p = this.progression;
     if (item.kind === 'weapon') {
-      const id = item.key.slice(2);
+      // Use the id the item carries. Parsing the key broke every daily deal,
+      // because a discounted weapon's key is 'deal_w_<id>' and slicing two
+      // characters off that yields a weapon that does not exist.
+      const id = item.wid || item.key.replace(/^deal_/, '').slice(2);
+      if (!WEAPONS[id]) return false;
       p.unlocked.add(id); this.arsenal.add(id);
       this.hud.notify(item.label + ' acquired', true);
       return true;
@@ -844,8 +848,11 @@ export class GameBase {
       if (this.input.once('replay')) this.toggleReplay();
       if (this.cfg.onGameplayKeys) this.cfg.onGameplayKeys(this);
       if (this.store) this.store.priceMod = this.repMod || 1;
+      // A mode decides SPAWNING and objectives — it must never replace the
+      // director update. Doing so left every enemy spawned but never ticked, so
+      // they stood still and could not attack. The director always runs.
       if (this.cfg.mode) this._updateMode(dt, dtW);
-      else this.director.update(dtW, this.player, ctx);
+      this.director.update(dtW, this.player, ctx);
       this._updateEnemyShots(dtW);
       this.throwables.update(dtW, this.director.alive, { onKill: (e) => this._onKill(e) });
       this._updateGibs(dtW);
