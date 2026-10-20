@@ -175,6 +175,18 @@ you want to place cars yourself rather than letting the fleet spawn them.
 ### `ally.js` — `new Ally(scene, world, player, audio, name)`
 `update(dt, enemies, ctx)` · `damage(n)` · `revive()` · `dispose()`
 
+### `compound.js`
+`buildCompound(world, cx, cz, half, opts)` — a walled compound with a single gate.
+Returns `{ group, colliders, door }` and registers itself as a **permanent world
+structure**, so it does not stream out when you walk away.
+
+`opts`: `doorSide` (`'north' | 'south' | 'east' | 'west'`) · `gateWidth` ·
+`colour`. `COMPOUND` exports the wall height and thickness.
+
+The safe house sits inside one of these. A safe zone used to be an invisible
+circular barrier, so enemies walked up to an arbitrary line and stood there; now
+they are stopped by a wall you can see and circle it instead.
+
 ### `base.js`
 `INSTALLS` · `new Base(scene, world, audio)`
 

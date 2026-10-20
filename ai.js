@@ -101,7 +101,7 @@ export class Enemy {
     this.knock = new THREE.Vector3();
     this.wander = new THREE.Vector3(); this.wanderT = 0;
     this.facing = Math.random() * Math.PI * 2;
-    this.surrendered = false; this.arrested = false;
+    this.surrendered = false; this.arrested = false; this.arrestT = 0;
     this.safeZones = [];   // assigned by the director
     this.stolen = 0;       // what a thief has run off with
     this.grabbing = null;  // the player, while a brute has hold of them
@@ -144,7 +144,7 @@ export class Enemy {
     this.leaps = !!t.leap; this.charger = !!t.charge;
     this.knock.set(0, 0, 0);
     this.wanderT = 0; this.facing = Math.random() * Math.PI * 2;
-    this.surrendered = false; this.arrested = false;
+    this.surrendered = false; this.arrested = false; this.arrestT = 0;
     this.effects = null;
     this.group.position.copy(pos);
     this.group.rotation.set(0, 0, 0);
@@ -290,11 +290,11 @@ export class Enemy {
       this.group.rotation.x += (target - this.group.rotation.x) * Math.min(1, dt * 5);
       this.group.rotation.z += dt * (dp === 2 ? 4.5 : 1.5) * (dp === 1 ? -1 : 1);
       // corpses linger, then fade
-      if (this.deadT > 1.5) {
-        const o = Math.max(0, 1 - (this.deadT - 1.5) / 3.5);
+      if (this.deadT > 0.8) {
+        const o = Math.max(0, 1 - (this.deadT - 0.8) / 1.8);
         for (const m of this._mats) { m.transparent = true; m.opacity = o; m.depthWrite = o > 0.6; }
       }
-      if (this.deadT > 5.0) this.removeMe = true;
+      if (this.deadT > 2.6) this.removeMe = true;
       return;
     }
 
@@ -363,6 +363,17 @@ export class Enemy {
       }
     }
 
+    // arrested: fade out and leave, instead of standing there for ever
+    if (this.arrested) {
+      this.arrestT = (this.arrestT || 0) + dt;
+      if (this.arrestT > 0.8) {
+        const o = Math.max(0, 1 - (this.arrestT - 0.8) / 0.7);
+        for (const m of this._mats) { m.transparent = true; m.opacity = o; m.depthWrite = o > 0.6; }
+      }
+      if (this.arrestT > 1.5) this.removeMe = true;
+      return;
+    }
+
     // surrendered: hands up, stand still, awaiting arrest
     if (this.surrendered) {
       this.arms[0].rotation.x = -2.3; this.arms[1].rotation.x = -2.3;
@@ -427,11 +438,14 @@ export class Enemy {
       const zone = this.safeZones.find((z) =>
         Math.hypot(player.pos.x - z.x, player.pos.z - z.z) < z.r);
       if (zone) {
-        const a = Math.atan2(p.x - zone.x, p.z - zone.z) + (this.flankSide || 1) * 0.22;
-        const R = zone.r + 1.6;
-        target = this._tgt.set(zone.x + Math.sin(a) * R, 0, zone.z + Math.cos(a) * R);
+        // Hug the wall and keep circling, so they read as "trying to get in"
+        // rather than standing about. The step is big enough to be visible.
+        // Record the zone only — the movement below walks them around the wall
+        // directly, because steering cannot solve it (every heading near the
+        // barrier is blocked, so the enemy simply stalls).
         this.alert = 'hunting';
-        this._pacing = true;
+        this._pacing = zone;
+        this.speed = Math.max(this.speed, (this.t.speed || 2) * 0.9);
       }
     }
     // ---- thief: creep in, lift your coins, then run for it ----
@@ -473,6 +487,25 @@ export class Enemy {
     else if (beh === 'flee' && player.alive && distP < 34 && this.alert !== 'idle')
       target = this._tgt.set(p.x - toPlayer.x, 0, p.z - toPlayer.z);
 
+    if (this._pacing) {
+      const z = this._pacing;
+      const spd = this.speed * (this.fearT > 0 ? 1.35 : 1);
+      // keep them just outside the barrier, then walk around it
+      let dx = p.x - z.x, dz = p.z - z.z;
+      let r = Math.hypot(dx, dz) || 0.001;
+      const want = z.r + 1.1;
+      const ux = dx / r, uz = dz / r;
+      // outward nudge if they have drifted in, tangential step to circle
+      const tx = -uz * (this.flankSide || 1), tz = ux * (this.flankSide || 1);
+      const push = (want - r) * Math.min(1, dt * 3);
+      p.x += (tx * spd * dt) + ux * push;
+      p.z += (tz * spd * dt) + uz * push;
+      this.facing = Math.atan2(tx, tz);
+      this.moving = true;
+      this._pacing = null;
+      return;
+    }
+
     if (target) {
       const to = target.clone().sub(p); to.y = 0;
       if (to.lengthSq() > 0.01) {
@@ -490,7 +523,7 @@ export class Enemy {
         this._steer(to, 0, 0, p, dt, this.speed * 0.5);
       }
     }
-    this._pacing = false;
+    this._pacing = null;
     this.group.rotation.y = this.facing;
     if (this.body && this.body.weakCore && !this.weakBroken) {
       const pulse = 1 + Math.sin(performance.now() / 260) * 0.14;

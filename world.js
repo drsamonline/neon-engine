@@ -120,6 +120,11 @@ export class World {
     ];
     this.clearZones = opts.clearZones ?? [];
     this.chunks = new Map();
+    // Structures that belong to the world, not to a chunk: they never stream out.
+    this.staticGroup = new THREE.Group();
+    this.staticGroup.name = 'static';
+    scene.add(this.staticGroup);
+    this.staticColliders = [];
     this.chunkSize = CHUNK;
     this.buildBudgetMs = 6;      // max milliseconds per frame spent building chunks
     this.interiors = [];
@@ -373,8 +378,20 @@ export class World {
   }
 
   /* ---------- queries ---------- */
+  /* Add a permanent structure: its meshes live outside the chunk system, and its
+     colliders are checked on every query. */
+  addStatic(mesh, colliders) {
+    if (mesh) this.staticGroup.add(mesh);
+    if (colliders) for (const c of colliders) this.staticColliders.push(c);
+    return mesh;
+  }
+
   collidersNear(x, z, radius, out) {
     out = out || []; out.length = 0;
+    for (const c of this.staticColliders) {
+      if (c.maxX < x - radius || c.minX > x + radius || c.maxZ < z - radius || c.minZ > z + radius) continue;
+      out.push(c);
+    }
     const cx = Math.floor(x / CHUNK), cz = Math.floor(z / CHUNK);
     for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
       const ch = this.chunks.get((cx + dx) + ',' + (cz + dz));
@@ -389,6 +406,9 @@ export class World {
 
   solidsNear(x, z, radius, out) {
     out = out || []; out.length = 0;
+    for (const c of this.staticColliders) {
+      if (c.mesh && !(c.maxX < x - radius || c.minX > x + radius || c.maxZ < z - radius || c.minZ > z + radius)) out.push(c.mesh);
+    }
     const cx = Math.floor(x / CHUNK), cz = Math.floor(z / CHUNK);
     const R = Math.ceil(radius / CHUNK) + 1;
     for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++) {

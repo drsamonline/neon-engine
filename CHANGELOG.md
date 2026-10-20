@@ -3,6 +3,50 @@
 All notable changes to the Neon Engine and its games.
 Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://semver.org/).
 
+## [1.23.0] — 2026-10-20
+
+The safe house is now a real fortification, and four bugs you reported are fixed.
+
+### Changed — the safe house is a walled compound with a gate
+A safe zone used to be an **invisible circular barrier**. Enemies could not cross
+it, so they walked up to an arbitrary line in open ground and stood there — which
+read as "the zombies are broken". It is now a **walled compound with a single
+gate**: you can see what is stopping them, they circle the wall, and you leave
+through a door.
+
+The walls are registered as **permanent world structures**, so they do not stream
+out when you walk away. Enemies press against the wall and walk around it
+(verified: six of them hold a steady radius of 14.1 and all move continuously —
+before, several were completely stationary).
+
+### Fixed — zombies freezing at the safe zone
+Steering could not solve this: with a barrier in the way every nearby heading is
+blocked, so the enemy stalled. Wall-following is now a **direct tangential step**
+that cannot fail, rather than something the steering has to discover.
+
+### Fixed — arrested suspects stood in the world for ever
+The arrest path set `arrested = true` but never cleared the body, so a cuffed
+suspect stayed where they were, permanently, and could never be arrested again.
+Arrested enemies now fade out over 1.5s. Corpses were also lingering **5 seconds**,
+which in a horde game leaves a field of bodies — now 2.6s.
+
+### Fixed — prompts showed "E" when the key is "F"
+Four prompts were hardcoded to `E` while the actual binding was `F`:
+"PRESS E TO SHOP", "PRESS E — SAFE HOUSE", "PRESS E TO ARREST", and the safe-house
+prompt. Every prompt now reads the **live binding**, so it can never drift again —
+rebind the key and the prompt follows.
+
+### Fixed — you could not click anything in the shop
+Pointer lock was taken at start and **never released**, so the cursor was captured
+and the buy buttons were unclickable. Any open panel now frees the pointer and
+closing it takes the pointer back. Pause had the same bug — **RESUME was
+unclickable** until the pointer was released.
+
+### Audit
+Five new guards: the compound has a gate and no holes, enemies hug the wall and
+never freeze or get inside, corpses clear within 4s, arrested suspects leave, and
+panels register as open UI (which is what frees the pointer).
+
 ## [1.22.0] — 2026-10-19
 
 ### Fixed — the zombie game was showing police text

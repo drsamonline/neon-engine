@@ -2,7 +2,8 @@
 import * as THREE from 'three';
 import { World } from './world.js';
 import { Player } from './player.js';
-import { Input, ACTIONS } from './input.js';
+import { Input, ACTIONS, keyLabel } from './input.js';
+import { buildCompound } from './compound.js';
 import { HUD } from './hud.js';
 import { Arsenal, RARITY, WEAPONS, WEAPON_TRACKS } from './weapons.js';
 import { Director, ENEMY_TYPES, setDamageScale } from './ai.js';
@@ -146,8 +147,13 @@ export class GameBase {
     // meant nothing could reach you and the world looked frozen.
     const sx = this.cfg.safeHouseX ?? 0, sz = this.cfg.safeHouseZ ?? 0;
     const sr = this.cfg.safeHouseRadius ?? 13;
+
+    // A real walled compound with one gate, instead of an invisible barrier that
+    // made enemies look frozen at an arbitrary line.
+    this.compound = buildCompound(this.world, sx, sz, sr,
+      { doorSide: 'north', gateWidth: 5.2, colour: '#5a6070' });
     const spawn = this.cfg.spawn ? new THREE.Vector3(this.cfg.spawn.x, 0, this.cfg.spawn.z)
-      : new THREE.Vector3(sx, 0, sz + sr + 4);
+      : new THREE.Vector3(sx, 0, sz + sr + 3.5);   // just outside the gate
     this.player.reset(spawn);
     this.spawnPos = spawn.clone();       // remembered so tests can assert it is safe
     this.player.yaw = Math.PI;          // looking away from the safe house
@@ -208,6 +214,7 @@ export class GameBase {
     this.progression.onLevelUp = (lvl, n) => this._onLevelUp(lvl, n);
     this.director.onSpawn = (e) => {};
     this.store.onBuy = (item) => this._onBuy(item);
+    if (this.hud) this.hud.keyName = (a) => this.keyName(a);
 
     this.input.onPause = () => { if (!this.input.isTouch) this.pause(); };
 
@@ -444,6 +451,8 @@ export class GameBase {
   pause() {
     if (!this.running) return;
     this.running = false;
+    document.exitPointerLock?.();          // otherwise RESUME cannot be clicked
+    this._uiWasOpen = true;
     this.input.showTouch(false);
     if (this.music) this.music.setMood('menu');
     this.overlay('PAUSED', this.cfg.subtitle || '', 'Click resume to continue.', 'RESUME');
@@ -865,7 +874,8 @@ export class GameBase {
       if (this.input.once('cycleThrow')) { this.throwables.cycle(); this.hud.notify(THROWABLES[this.throwables.selected].name); }
       this.hud.setThrowable(THROWABLES[this.throwables.selected].name, this.throwables.count());
       if (this.ally) this.hud.setAlly(this.ally);
-      this._updatePrompt();
+      this._syncPointerLock();
+    this._updatePrompt();
     this.loot.baseMagnet = 2.6 + this.progression.perk('magnet') * 2.5;
 
       // ping
@@ -1023,6 +1033,31 @@ export class GameBase {
     this.camera.rotation.set(a.pitch + (b.pitch - a.pitch) * f, a.yaw + (b.yaw - a.yaw) * f, 0, 'YXZ');
   }
 
+  /* the display name of whatever key is actually bound to an action */
+  keyName(action) {
+    const b = this.input && this.input.binds && this.input.binds[action];
+    return (b && b.length) ? keyLabel(b[0]) : '?';
+  }
+
+  /* Is any panel open? While one is, the pointer must be FREE — otherwise the
+     mouse is captured by pointer lock and nothing in the UI can be clicked. */
+  _uiOpen() {
+    const vis = (id) => { const el = document.getElementById(id); return !!el && !el.classList.contains('hidden'); };
+    return !!((this.store && this.store.open) || (this.safeHouse && this.safeHouse.open) ||
+      this.mapOpen || vis('settingsmodal') || vis('metamodal') || vis('runsummary') ||
+      vis('shop') || vis('bigmap'));
+  }
+
+  /* Release the pointer for menus, take it back when they close. */
+  _syncPointerLock() {
+    if (this.input.isTouch) return;
+    const open = this._uiOpen();
+    if (open === this._uiWasOpen) return;
+    this._uiWasOpen = open;
+    if (open) document.exitPointerLock?.();
+    else if (this.running && !this.dead) this.input.requestLock();
+  }
+
   _updatePrompt() {
     // a clear reason why nothing is attacking you
     const inZone = (this.safeZones || []).some((z) =>
@@ -1033,8 +1068,9 @@ export class GameBase {
     if (!text) {
       const p = this.player.pos;
       const near = (o, r) => o && o.position && Math.hypot(o.position.x - p.x, o.position.z - p.z) < r;
-      if (this.safeHouse && near(this.safeHouse.standPos || this.safeHouse.position, 5)) text = 'F  safe house';
-      else if (this.store && near(this.store.standPos || this.store.position, 5)) text = 'F  trade';
+      const K = this.keyName('use');
+      if (this.safeHouse && near(this.safeHouse.standPos || this.safeHouse.position, 5)) text = K + '  safe house';
+      else if (this.store && near(this.store.standPos || this.store.position, 5)) text = K + '  trade';
       else if (this.safeZones && this.safeZones.some((z) => Math.hypot(z.x - p.x, z.z - p.z) < z.r)) text = 'SAFE ZONE';
     }
     this.hud.setPrompt(text);

@@ -72,7 +72,7 @@ export class Store {
     }
     const d = Math.hypot(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
     const near = d < 3.2;
-    if (hud) hud.setUseVisible(near && !this.open, 'PRESS E TO SHOP');
+    if (hud) hud.setUseVisible(near && !this.open, 'PRESS ' + (hud.keyName ? hud.keyName('use') : 'F') + ' TO SHOP');
     if (near && input && input.once('interact')) { this.open ? this.close() : this.show(progression); }
     if (this.open && !near) this.close();
   }

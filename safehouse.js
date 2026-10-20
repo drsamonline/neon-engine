@@ -106,7 +106,8 @@ export class SafeHouse {
     if (this.ring) this.ring.material.opacity = 0.4 + Math.sin(performance.now() / 500) * 0.12;
 
     if (near && !this.open) {
-      const prompt = progression.points > 0 ? 'PRESS E — SPEND SKILL POINTS' : 'PRESS E — SAFE HOUSE';
+      const K = (hud && hud.keyName) ? hud.keyName('use') : 'F';
+      const prompt = progression.points > 0 ? 'PRESS ' + K + ' — SPEND SKILL POINTS' : 'PRESS ' + K + ' — SAFE HOUSE';
       if (hud) hud.setUseVisible(true, prompt);
     }
     if (near && input && input.once('interact')) { this.open ? this.close() : this.show(progression); }
