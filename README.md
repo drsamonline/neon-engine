@@ -5,8 +5,8 @@
 **A code-only open-world game engine for the browser.** No assets, no build step, no dependencies &mdash; every texture, mesh and sound is generated at runtime, so a complete open-world shooter ships in about 915&nbsp;KB and runs offline.
 
 [![Landing page](https://img.shields.io/badge/%E2%96%B6_LANDING_PAGE-neon--engine-2dd4bf?style=for-the-badge)](https://drsamonline.github.io/neon-engine/)
-[![Play Dead Zone](https://img.shields.io/badge/%E2%96%B6_PLAY-Dead_Zone-ff5a7a?style=for-the-badge)](https://drsamonline.github.io/neon-games/dead-zone/)
-[![Play Neon Police](https://img.shields.io/badge/%E2%96%B6_PLAY-Neon_Police-59d0ff?style=for-the-badge)](https://drsamonline.github.io/neon-games/neon-police/)
+[![Play Dead Zone](https://img.shields.io/badge/%E2%96%B6_PLAY-Dead_Zone-ff5a7a?style=for-the-badge)](https://drsamonline.github.io/neon-games/play/dead-zone/)
+[![Play Neon Police](https://img.shields.io/badge/%E2%96%B6_PLAY-Neon_Police-59d0ff?style=for-the-badge)](https://drsamonline.github.io/neon-games/play/neon-police/)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2dd4bf.svg)](LICENSE)
 [![No dependencies](https://img.shields.io/badge/dependencies-0-2dd4bf.svg)](#)
@@ -14,7 +14,6 @@
 [![three.js r160](https://img.shields.io/badge/three.js-r160-9a7cff.svg)](https://threejs.org)
 [![WebGL2](https://img.shields.io/badge/WebGL2-required-2dd4bf.svg)](#)
 
-**Landing page:** <https://drsamonline.github.io/neon-engine/> &nbsp;&middot;&nbsp; **Live demos:** [Dead Zone](https://drsamonline.github.io/neon-games/dead-zone/) &middot; [Neon Police](https://drsamonline.github.io/neon-games/neon-police/)
 
 </div>
 
@@ -36,13 +35,11 @@ Created by **[Dr. Sohil Momin](https://github.com/drsamonline)**.
 
 Both games are free to play, right in your browser — no install, no account.
 
-[![Play Dead Zone](https://img.shields.io/badge/%E2%96%B6_PLAY-Dead_Zone-ff5a7a?style=for-the-badge)](https://drsamonline.github.io/neon-games/dead-zone/)
-[![Play Neon Police](https://img.shields.io/badge/%E2%96%B6_PLAY-Neon_Police-59d0ff?style=for-the-badge)](https://drsamonline.github.io/neon-games/neon-police/)
 
 | Game | What it is | Source |
 | --- | --- | --- |
-| **[Dead Zone](https://drsamonline.github.io/neon-games/dead-zone/)** | Endless zombie survival. No timer, no end — the horde escalates as you level. | [repo](https://github.com/drsamonline/neon-games) |
-| **[Neon Police](https://drsamonline.github.io/neon-games/neon-police/)** | Respond to crime in an open city. Arrest when you can, shoot when you must. | [repo](https://github.com/drsamonline/neon-games) |
+| **[Dead Zone](https://drsamonline.github.io/neon-games/play/dead-zone/)** | Endless zombie survival. No timer, no end — the horde escalates as you level. | [repo](https://github.com/drsamonline/neon-games) |
+| **[Neon Police](https://drsamonline.github.io/neon-games/play/neon-police/)** | Respond to crime in an open city. Arrest when you can, shoot when you must. | [repo](https://github.com/drsamonline/neon-games) |
 
 ---
 
@@ -194,4 +191,4 @@ Free to play. You may use, modify, remix and redistribute the engine — includi
 derivative works — **as long as you credit Dr. Sohil Momin as the original
 creator**. three.js and `BufferGeometryUtils` remain under their own MIT licences.
 
-See [LICENSE.md](LICENSE.md) for the full terms.
+See [LICENSE](LICENSE) for the full terms.
