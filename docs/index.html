@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Neon Engine — Code-only open-world WebGL game engine for the browser</title>
+<meta name="description" content="Neon Engine is a code-only open-world game engine for the browser. No assets, no build step, no dependencies — every texture, mesh and sound is generated at runtime, so a complete open-world shooter ships in about 915 KB and runs offline." />
+<meta name="keywords" content="neon engine, webgl game engine, three.js engine, browser game engine, open-world shooter, procedural game engine, no assets, offline game, javascript game engine, webgl2, dr sohil momin" />
+<meta name="author" content="Dr. Sohil Momin" />
+<meta name="robots" content="index, follow, max-image-preview:large" />
+<meta name="theme-color" content="#08080f" />
+<link rel="canonical" href="https://drsamonline.github.io/neon-engine/" />
+<link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Neon Engine" />
+<meta property="og:title" content="Neon Engine — Code-only open-world WebGL game engine" />
+<meta property="og:description" content="No assets, no build step, no dependencies. Every texture, mesh and sound is generated at runtime — a complete open-world browser shooter in about 915 KB, offline-ready." />
+<meta property="og:url" content="https://drsamonline.github.io/neon-engine/" />
+<meta property="og:image" content="https://socialify.git.ci/drsamonline/neon-engine/image?name=1&amp;owner=1&amp;description=1&amp;language=1&amp;theme=Dark&amp;font=Inter" />
+<meta property="og:image:width" content="1280" />
+<meta property="og:image:height" content="640" />
+<meta property="og:image:alt" content="Neon Engine — a code-only open-world game engine for the browser" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Neon Engine — Code-only open-world WebGL game engine" />
+<meta name="twitter:description" content="No assets, no build step, no dependencies. Every texture, mesh and sound is generated at runtime — a complete open-world browser shooter in about 915 KB, offline-ready." />
+<meta name="twitter:image" content="https://socialify.git.ci/drsamonline/neon-engine/image?name=1&amp;owner=1&amp;description=1&amp;language=1&amp;theme=Dark&amp;font=Inter" />
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Neon Engine",
+  "applicationCategory": "DeveloperApplication",
+  "applicationSubCategory": "Game engine",
+  "operatingSystem": "Any modern browser with WebGL2",
+  "description": "A code-only open-world game engine for the browser. No assets, no build step, no dependencies: every texture, mesh and sound is generated at runtime.",
+  "url": "https://drsamonline.github.io/neon-engine/",
+  "codeRepository": "https://github.com/drsamonline/neon-engine",
+  "license": "https://github.com/drsamonline/neon-engine/blob/main/LICENSE",
+  "programmingLanguage": "JavaScript",
+  "softwareVersion": "1.15.0",
+  "author": { "@type": "Person", "name": "Dr. Sohil Momin", "url": "https://github.com/drsamonline" },
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
+
+<style>
+  :root{
+    --bg:#08080f;
+    --bg-2:#0b0b16;
+    --panel:#0d0d1a;
+    --panel-2:#101022;
+    --line:rgba(45,212,191,.16);
+    --line-soft:rgba(45,212,191,.08);
+    --accent:#2dd4bf;
+    --accent-2:#7ef2df;
+    --accent-dim:#17867a;
+    --text:#cfe6e2;
+    --muted:#7d9a97;
+    --muted-2:#5c7370;
+    --white:#eafaf7;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;
+    --max:1080px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:var(--sans);font-size:16px;line-height:1.65;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  }
+  a{color:var(--accent);text-decoration:none}
+  a:hover{color:var(--accent-2)}
+  h1,h2,h3{color:var(--white);line-height:1.2;margin:0;letter-spacing:-.01em}
+  code,kbd,pre{font-family:var(--mono)}
+
+  /* ---------- perspective grid backdrop ---------- */
+  .gridbg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+  .gridbg .plane{
+    position:absolute;left:-50%;right:-50%;bottom:-30%;height:120%;
+    background-image:
+      linear-gradient(to right,var(--line-soft) 1px,transparent 1px),
+      linear-gradient(to bottom,var(--line-soft) 1px,transparent 1px);
+    background-size:52px 52px;
+    transform:perspective(420px) rotateX(62deg);
+    transform-origin:50% 100%;
+    -webkit-mask-image:linear-gradient(to top,#000 0%,rgba(0,0,0,.45) 34%,transparent 78%);
+            mask-image:linear-gradient(to top,#000 0%,rgba(0,0,0,.45) 34%,transparent 78%);
+    opacity:.85;
+  }
+  .gridbg .glow{
+    position:absolute;left:50%;top:-16%;width:1100px;height:620px;transform:translateX(-50%);
+    background:radial-gradient(closest-side,rgba(45,212,191,.16),transparent 72%);
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .gridbg .plane{animation:drift 14s linear infinite}
+    @keyframes drift{from{background-position:0 0}to{background-position:0 52px}}
+  }
+
+  .wrap{position:relative;z-index:1;max-width:var(--max);margin:0 auto;padding:0 22px}
+  section{position:relative;z-index:1}
+
+  /* ---------- nav ---------- */
+  header.nav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(8,8,15,.72);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-in{max-width:var(--max);margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:18px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-weight:600;color:var(--white);letter-spacing:.02em}
+  .brand svg{display:block}
+  .brand .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+  .nav-links{margin-left:auto;display:flex;gap:22px;align-items:center;font-size:14px}
+  .nav-links a{color:var(--muted)}
+  .nav-links a:hover{color:var(--accent-2)}
+  .nav-cta{
+    border:1px solid var(--line);border-radius:7px;padding:7px 13px;color:var(--accent)!important;
+    font-family:var(--mono);font-size:13px;background:rgba(45,212,191,.06)
+  }
+  @media(max-width:720px){.nav-links a:not(.nav-cta){display:none}}
+
+  /* ---------- hero ---------- */
+  .hero{padding:76px 0 34px}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12.5px;
+    color:var(--accent);border:1px solid var(--line);border-radius:100px;padding:6px 13px;
+    background:rgba(45,212,191,.05);letter-spacing:.04em
+  }
+  .eyebrow .pulse{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 rgba(45,212,191,.6)}
+  @media (prefers-reduced-motion:no-preference){
+    .eyebrow .pulse{animation:pulse 2.4s ease-out infinite}
+    @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(45,212,191,.5)}70%{box-shadow:0 0 0 9px rgba(45,212,191,0)}100%{box-shadow:0 0 0 0 rgba(45,212,191,0)}}
+  }
+  .hero h1{font-size:clamp(38px,7vw,68px);margin:22px 0 0;font-weight:800}
+  .hero h1 .thin{color:var(--accent);font-weight:800}
+  .hero .lede{font-size:clamp(16px,2.3vw,20px);color:var(--muted);max-width:640px;margin:18px 0 0}
+  .hero .lede b{color:var(--text);font-weight:600}
+  .cta-row{display:flex;flex-wrap:wrap;gap:13px;margin-top:28px}
+  .btn{
+    display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:14px;
+    padding:12px 19px;border-radius:9px;border:1px solid var(--line);color:var(--white);
+    background:var(--panel);transition:transform .15s ease,border-color .15s ease,background .15s ease
+  }
+  .btn:hover{transform:translateY(-1px);border-color:var(--accent);color:var(--white)}
+  .btn.primary{background:linear-gradient(180deg,rgba(45,212,191,.18),rgba(45,212,191,.07));border-color:rgba(45,212,191,.4);color:var(--accent-2)}
+  .btn svg{display:block}
+  @media (prefers-reduced-motion:reduce){.btn{transition:none}.btn:hover{transform:none}}
+
+  /* ---------- badges ---------- */
+  .badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px;align-items:center}
+  .badges img{height:20px;display:block}
+  .chip{
+    font-family:var(--mono);font-size:12px;color:var(--accent-2);border:1px solid var(--line);
+    border-radius:6px;padding:3px 9px;background:rgba(45,212,191,.05);letter-spacing:.02em;white-space:nowrap
+  }
+  .chip.dim{color:var(--muted)}
+  .chip-label{font-family:var(--mono);font-size:11px;color:var(--muted-2);letter-spacing:.12em;text-transform:uppercase;margin-right:2px}
+
+  /* ---------- generic section chrome ---------- */
+  .sec{padding:56px 0}
+  .sec-head{max-width:640px}
+  .sec-kicker{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+  .sec h2{font-size:clamp(24px,4vw,34px);margin-top:12px}
+  .sec p.sub{color:var(--muted);margin:12px 0 0}
+
+  /* ---------- cards ---------- */
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:34px}
+  @media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:600px){.cards{grid-template-columns:1fr}}
+  .card{
+    position:relative;background:linear-gradient(180deg,var(--panel),var(--bg-2));
+    border:1px solid var(--line);border-radius:12px;padding:22px 20px;overflow:hidden;
+    transition:border-color .2s ease,transform .2s ease
+  }
+  .card::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.5}
+  .card:hover{border-color:rgba(45,212,191,.4);transform:translateY(-3px)}
+  @media (prefers-reduced-motion:reduce){.card{transition:none}.card:hover{transform:none}}
+  .card .ic{width:40px;height:40px;border-radius:9px;display:grid;place-items:center;border:1px solid var(--line);background:rgba(45,212,191,.06);margin-bottom:14px}
+  .card h3{font-size:17px;margin-bottom:8px}
+  .card p{margin:0;color:var(--muted);font-size:14.5px}
+  .card code{color:var(--accent-2);font-size:13px}
+
+  /* ---------- code blocks ---------- */
+  .code{
+    margin:0;background:#05050b;border:1px solid var(--line);border-radius:11px;overflow:hidden
+  }
+  .code .bar{
+    display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--line);
+    background:rgba(45,212,191,.04);font-family:var(--mono);font-size:12px;color:var(--muted)
+  }
+  .code .bar .fname{color:var(--accent-2)}
+  .code .bar .led{width:9px;height:9px;border-radius:50%;background:#1d2a28;border:1px solid var(--line)}
+  .code pre{margin:0;padding:16px 16px;overflow-x:auto;font-size:13px;line-height:1.75;color:#bfe4de}
+  .code pre .c{color:#4f6d69}      /* comment */
+  .code pre .k{color:#7ef2df}      /* keyword */
+  .code pre .s{color:#8fd7b8}      /* string */
+  .code pre .n{color:#e6b673}      /* number */
+  .code pre .p{color:#a7c6c2}      /* prop */
+  .code pre .t{color:#eafaf7}      /* tag */
+  .code pre .m{color:#79d3ff}      /* meta/fn */
+
+  /* ---------- split layout ---------- */
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:34px;align-items:start;margin-top:30px}
+  @media(max-width:860px){.split{grid-template-columns:1fr;gap:24px}}
+  .steps{list-style:none;padding:0;margin:0;counter-reset:s}
+  .steps li{position:relative;padding:0 0 20px 44px;border-left:1px solid var(--line);margin-left:12px}
+  .steps li:last-child{border-left-color:transparent;padding-bottom:0}
+  .steps li::before{
+    counter-increment:s;content:counter(s,decimal-leading-zero);
+    position:absolute;left:-13px;top:-2px;width:26px;height:26px;border-radius:7px;
+    display:grid;place-items:center;font-family:var(--mono);font-size:11px;
+    color:var(--accent);background:#0a0a14;border:1px solid var(--line)
+  }
+  .steps li h3{font-size:16px;margin-bottom:5px}
+  .steps li p{margin:0;color:var(--muted);font-size:14.5px}
+
+  /* ---------- diagram ---------- */
+  .diagram{
+    margin-top:30px;border:1px solid var(--line);border-radius:14px;background:
+      linear-gradient(180deg,var(--panel),var(--bg-2));padding:20px
+  }
+  .diagram svg{width:100%;height:auto;display:block}
+  .dnote{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:14px;text-align:center}
+
+  /* ---------- demo ---------- */
+  .demo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:30px}
+  @media(max-width:640px){.demo-grid{grid-template-columns:1fr}}
+  .demo-card{
+    border:1px solid var(--line);border-radius:12px;background:linear-gradient(180deg,var(--panel),var(--bg-2));
+    padding:20px;display:flex;flex-direction:column;gap:10px;transition:border-color .2s ease
+  }
+  .demo-card:hover{border-color:rgba(45,212,191,.4)}
+  .demo-card .tag{font-family:var(--mono);font-size:11.5px;color:var(--accent);letter-spacing:.08em;text-transform:uppercase}
+  .demo-card h3{font-size:18px}
+  .demo-card p{margin:0;color:var(--muted);font-size:14.5px;flex:1}
+  .demo-card .go{font-family:var(--mono);font-size:13px;color:var(--accent-2);display:inline-flex;gap:7px;align-items:center}
+
+  /* ---------- faq ---------- */
+  .faq{margin-top:30px;border-top:1px solid var(--line)}
+  details{border-bottom:1px solid var(--line);padding:4px 0}
+  details summary{
+    cursor:pointer;list-style:none;padding:17px 34px 17px 0;position:relative;
+    font-weight:600;color:var(--white);font-size:16px
+  }
+  details summary::-webkit-details-marker{display:none}
+  details summary::after{
+    content:"";position:absolute;right:6px;top:23px;width:8px;height:8px;
+    border-right:2px solid var(--accent);border-bottom:2px solid var(--accent);
+    transform:rotate(45deg);transition:transform .2s ease
+  }
+  details[open] summary::after{transform:rotate(-135deg)}
+  @media (prefers-reduced-motion:reduce){details summary::after{transition:none}}
+  details .ans{padding:0 0 20px;color:var(--muted);font-size:14.8px;max-width:760px}
+  details .ans code{color:var(--accent-2);font-size:13px}
+
+  /* ---------- get started panel ---------- */
+  .panel{
+    border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,var(--panel),var(--bg-2));
+    padding:28px;margin-top:30px
+  }
+  .panel .row{display:flex;flex-wrap:wrap;gap:14px;margin-top:18px}
+  .panel h3{font-size:18px}
+
+  /* ---------- footer ---------- */
+  footer{position:relative;z-index:1;border-top:1px solid var(--line);margin-top:40px;background:rgba(5,5,11,.6)}
+  .foot{max-width:var(--max);margin:0 auto;padding:34px 22px;display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between}
+  .foot .built{font-family:var(--mono);font-size:13px;color:var(--muted)}
+  .foot .built b{color:var(--accent-2);font-weight:600}
+  .foot .links{display:flex;flex-wrap:wrap;gap:20px;font-size:14px}
+  .foot .links a{color:var(--muted)}
+  .foot .links a:hover{color:var(--accent-2)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+
+<div class="gridbg" aria-hidden="true">
+  <div class="glow"></div>
+  <div class="plane"></div>
+</div>
+
+<header class="nav">
+  <div class="nav-in">
+    <span class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z" stroke="#2dd4bf" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M12 7v10M7.5 9.5v5M16.5 9.5v5" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" opacity=".6"/>
+      </svg>
+      neon-engine <span class="dot"></span>
+    </span>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#demo">Demo</a>
+      <a href="#start">Get started</a>
+      <a href="#faq">FAQ</a>
+      <a class="nav-cta" href="https://github.com/drsamonline/neon-engine">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ================= HERO ================= -->
+  <section class="hero wrap" aria-labelledby="hero-h">
+    <span class="eyebrow"><span class="pulse"></span> WebGL2 · three.js r160 · zero assets · no build step</span>
+    <h1 id="hero-h">A code-only <span class="thin">open-world</span> game engine for the browser.</h1>
+    <p class="lede">
+      No assets. No build step. No dependencies. Every texture, mesh and sound is
+      generated at runtime, so a <b>complete open-world shooter ships in about 915&nbsp;KB</b>
+      and runs offline. It powers two shipped games — <b>Dead Zone</b> and <b>Neon Police</b>.
+    </p>
+    <div class="cta-row">
+      <a class="btn primary" href="#start">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Quickstart
+      </a>
+      <a class="btn" href="https://drsamonline.github.io/neon-games/dead-zone/">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        Play Dead Zone
+      </a>
+      <a class="btn" href="https://github.com/drsamonline/neon-engine">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.1.1 1.7 1.2 1.7 1.2 1 1.7 2.7 1.2 3.4.9.1-.7.4-1.2.7-1.5-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.4 4.6 18.4 4.9 18.4 4.9c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5Z"/></svg>
+        Source
+      </a>
+    </div>
+
+    <div class="badges" aria-label="Project badges">
+      <span class="chip-label">live</span>
+      <img src="https://img.shields.io/github/license/drsamonline/neon-engine?color=2dd4bf&label=license&style=flat-square" alt="License" loading="lazy" onerror="this.style.display='none'" />
+      <img src="https://img.shields.io/github/v/release/drsamonline/neon-engine?color=2dd4bf&label=release&style=flat-square" alt="Release" loading="lazy" onerror="this.style.display='none'" />
+      <img src="https://img.shields.io/github/stars/drsamonline/neon-engine?color=2dd4bf&label=stars&style=flat-square" alt="Stars" loading="lazy" onerror="this.style.display='none'" />
+      <img src="https://img.shields.io/github/last-commit/drsamonline/neon-engine?color=2dd4bf&label=last%20commit&style=flat-square" alt="Last commit" loading="lazy" onerror="this.style.display='none'" />
+      <img src="https://img.shields.io/github/issues/drsamonline/neon-engine?color=2dd4bf&label=issues&style=flat-square" alt="Issues" loading="lazy" onerror="this.style.display='none'" />
+      <span class="chip-label" style="margin-left:8px">built-in</span>
+      <span class="chip">v1.15.0</span>
+      <span class="chip">0 dependencies</span>
+      <span class="chip">offline-ready</span>
+      <span class="chip">three.js r160</span>
+      <span class="chip dim">~34 ES modules</span>
+      <span class="chip dim">MIT</span>
+    </div>
+  </section>
+
+  <!-- ================= FEATURES ================= -->
+  <section class="sec wrap" id="features" aria-labelledby="feat-h">
+    <div class="sec-head">
+      <div class="sec-kicker">// features</div>
+      <h2 id="feat-h">An engine with nothing to download</h2>
+      <p class="sub">A small, dependency-light WebGL engine for open-world browser shooters. A new game is mostly a config object plus a gameplay hook.</p>
+    </div>
+
+    <div class="cards">
+      <article class="card">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7l8-4 8 4v10l-8 4-8-4V7Z" stroke="#2dd4bf" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 7l8 4 8-4M12 11v10" stroke="#2dd4bf" stroke-width="1.6" stroke-linejoin="round" opacity=".65"/></svg></div>
+        <h3>Zero asset files</h3>
+        <p>No image, model or audio files anywhere. The city, every texture, every mesh and every sound is synthesised in code — which is why a whole game fits in about 915&nbsp;KB minified, across two requests.</p>
+      </article>
+
+      <article class="card">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.2" stroke="#2dd4bf" stroke-width="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.2" stroke="#2dd4bf" stroke-width="1.6" opacity=".55"/><rect x="3" y="14" width="7" height="7" rx="1.2" stroke="#2dd4bf" stroke-width="1.6" opacity=".55"/><rect x="14" y="14" width="7" height="7" rx="1.2" stroke="#2dd4bf" stroke-width="1.6"/></svg></div>
+        <h3>Streaming procedural world</h3>
+        <p>A 5 × 5 window of 96-unit chunks around the player, derived from a seeded hash so the same seed always builds the same world. Each chunk merges its geometry per material — roughly one draw call per material, not hundreds.</p>
+      </article>
+
+      <article class="card">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 6 3 12l5 6M16 6l5 6-5 6M13 4l-2 16" stroke="#2dd4bf" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3>Config, not boilerplate</h3>
+        <p>Construct <code>new GameBase(canvas, config)</code> and implement hooks like <code>onGameplay</code> and <code>extraPois</code>. A game never talks to three.js directly — it configures the shell and inherits the rest.</p>
+      </article>
+
+      <article class="card">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 14v-2a8 8 0 0 1 16 0v2" stroke="#2dd4bf" stroke-width="1.6" stroke-linecap="round"/><rect x="3" y="13" width="4" height="6" rx="1.4" stroke="#2dd4bf" stroke-width="1.6"/><rect x="17" y="13" width="4" height="6" rx="1.4" stroke="#2dd4bf" stroke-width="1.6"/></svg></div>
+        <h3>Zero-byte audio</h3>
+        <p>Every SFX and all music is synthesised with the WebAudio API — per-weapon gunshots, impacts, footsteps, groans, thunder and wind beds. A generative engine crossfades four moods on tempo and layer mix, live.</p>
+      </article>
+
+      <article class="card">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="#2dd4bf" stroke-width="1.6"/><path d="M12 7v5l3.5 2" stroke="#2dd4bf" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3>Frame-budgeted, no workers</h3>
+        <p>Chunk building is synchronous but budgeted to a 6&nbsp;ms slice, nearest-first, so travel never hitches. Collision is AABB prisms and vehicles use an arcade model — no physics engine, no worker threads.</p>
+      </article>
+
+      <article class="card">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l7 4v5c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V7l7-4Z" stroke="#2dd4bf" stroke-width="1.6" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="#2dd4bf" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3>Systems included</h3>
+        <p>Weapons, enemy AI director, loot, levelling and prestige, a store, a safe house, HUD and maps, throwables, vehicles, a companion, a 16-mission campaign and four game modes — all switched on by config keys.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ================= HOW IT WORKS ================= -->
+  <section class="sec wrap" id="how" aria-labelledby="how-h">
+    <div class="sec-head">
+      <div class="sec-kicker">// how it works</div>
+      <h2 id="how-h">Serve it, wire a page, build a game</h2>
+      <p class="sub">The engine source is plain ES modules, so it needs a server — <code>python3 -m http.server 8080</code>. The import map is required: the engine imports <code>three</code> as a bare specifier.</p>
+    </div>
+
+    <div class="split">
+      <ol class="steps">
+        <li>
+          <h3>Serve the files</h3>
+          <p>No build step and no dependencies. Any modern browser with WebGL2 will run it. The engine imports <code>three</code> as a bare specifier, so the import map is required.</p>
+        </li>
+        <li>
+          <h3>Wire up a page</h3>
+          <p>A canvas, an overlay and a module script. Load <code>hud.css</code> for the shared HUD, touch, shop and map styling.</p>
+        </li>
+        <li>
+          <h3>Build a game</h3>
+          <p>Construct <code>GameBase</code> with a config object, then call <code>init()</code> and <code>loop()</code>. That alone is a complete, playable open-world shooter.</p>
+        </li>
+        <li>
+          <h3>Turn systems on</h3>
+          <p>Vehicles, companion, campaign and modes are off unless you ask. Each is a single config key — <code>mode: 'bossrush'</code> replaces the normal spawn loop.</p>
+        </li>
+      </ol>
+
+      <div>
+        <div class="code">
+          <div class="bar"><span class="led"></span><span class="led"></span><span class="led"></span><span class="fname">index.html</span></div>
+<pre><span class="c">&lt;!-- 1. the import map is required --&gt;</span>
+<span class="t">&lt;script</span> <span class="p">type</span>=<span class="s">"importmap"</span><span class="t">&gt;</span>
+{ <span class="s">"imports"</span>: { <span class="s">"three"</span>: <span class="s">"./engine/three.module.js"</span> } }
+<span class="t">&lt;/script&gt;</span>
+
+<span class="t">&lt;canvas</span> <span class="p">id</span>=<span class="s">"game"</span><span class="t">&gt;&lt;/canvas&gt;</span>
+<span class="t">&lt;script</span> <span class="p">type</span>=<span class="s">"module"</span> <span class="p">src</span>=<span class="s">"./mygame.js"</span><span class="t">&gt;&lt;/script&gt;</span></pre>
+        </div>
+
+        <div class="code" style="margin-top:16px">
+          <div class="bar"><span class="led"></span><span class="led"></span><span class="led"></span><span class="fname">mygame.js</span></div>
+<pre><span class="k">import</span> { GameBase } <span class="k">from</span> <span class="s">'./engine/gamebase.js'</span>;
+
+<span class="k">const</span> game = <span class="k">new</span> <span class="m">GameBase</span>(document.<span class="m">getElementById</span>(<span class="s">'game'</span>), {
+  seed: <span class="n">1234</span>,
+  dayLength: <span class="n">300</span>,
+  worldWeights: [[<span class="s">'city'</span>, <span class="n">5</span>], [<span class="s">'park'</span>, <span class="n">2</span>], [<span class="s">'jungle'</span>, <span class="n">2</span>]],
+  pool: [<span class="s">'walker'</span>, <span class="s">'runner'</span>],   <span class="c">// what the director sends</span>
+  autoSpawn: <span class="k">true</span>,
+  persist: <span class="k">true</span>,              <span class="c">// save to localStorage</span>
+  startingWeapons: [<span class="s">'knife'</span>, <span class="s">'pistol'</span>],
+  objectiveMain: <span class="s">'SURVIVE'</span>,
+
+  <span class="m">onGameplay</span>(dt, g) { <span class="c">/* your logic each frame */</span> },
+});
+
+game.<span class="m">init</span>();
+game.<span class="m">loop</span>();</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="code" style="margin-top:22px">
+      <div class="bar"><span class="led"></span><span class="led"></span><span class="led"></span><span class="fname">turn systems on — each is one config key</span></div>
+<pre><span class="k">const</span> game = <span class="k">new</span> <span class="m">GameBase</span>(canvas, {
+  <span class="c">// …the above, plus:</span>
+  vehicles: <span class="k">true</span>,          <span class="c">// drivable cars (F to get in)</span>
+  ally: <span class="k">true</span>,              <span class="c">// a companion who follows and shoots</span>
+  allyName: <span class="s">'Rook'</span>,
+  campaign: <span class="k">true</span>,          <span class="c">// the 16-mission scripted chain</span>
+  mode: <span class="s">'bossrush'</span>,        <span class="c">// 'arena' | 'bossrush' | 'defence' | 'extraction'</span>
+});</pre>
+    </div>
+  </section>
+
+  <!-- ================= DEMO / DIAGRAM ================= -->
+  <section class="sec wrap" id="demo" aria-labelledby="demo-h">
+    <div class="sec-head">
+      <div class="sec-kicker">// architecture &amp; demo</div>
+      <h2 id="demo-h">How it is put together</h2>
+      <p class="sub">A game configures <code>GameBase</code> and implements hooks; everything else is inherited. Play the two games built on it, or read the architecture notes in the repo.</p>
+    </div>
+
+    <div class="diagram" role="img" aria-label="Neon Engine layering diagram: a game config sits on top of GameBase, which sits on the subsystems, which sit on core.js and three.module.js.">
+      <svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace,Menlo,Consolas,monospace">
+        <defs>
+          <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#0e1f1c"/><stop offset="1" stop-color="#0a0f14"/>
+          </linearGradient>
+        </defs>
+        <!-- layer 1 -->
+        <rect x="300" y="18" width="300" height="46" rx="9" fill="url(#lg)" stroke="#2dd4bf" stroke-opacity=".55"/>
+        <text x="450" y="40" text-anchor="middle" fill="#eafaf7" font-size="14">game (survival.js / police.js)</text>
+        <text x="450" y="56" text-anchor="middle" fill="#7d9a97" font-size="11">config + gameplay hooks</text>
+        <!-- layer 2 -->
+        <rect x="320" y="92" width="260" height="42" rx="9" fill="url(#lg)" stroke="#2dd4bf" stroke-opacity=".4"/>
+        <text x="450" y="118" text-anchor="middle" fill="#cfe6e2" font-size="13">engine/gamebase.js</text>
+        <!-- layer 3 -->
+        <rect x="70" y="162" width="760" height="46" rx="9" fill="url(#lg)" stroke="#2dd4bf" stroke-opacity=".28"/>
+        <text x="450" y="184" text-anchor="middle" fill="#cfe6e2" font-size="12.5">world · player · weapons · ai · loot · leveling · store · safehouse · hud · audio · input</text>
+        <text x="450" y="199" text-anchor="middle" fill="#7d9a97" font-size="11">subsystems — attached to the shell's prototype</text>
+        <!-- layer 4 -->
+        <rect x="300" y="236" width="300" height="42" rx="9" fill="url(#lg)" stroke="#2dd4bf" stroke-opacity=".4"/>
+        <text x="450" y="262" text-anchor="middle" fill="#cfe6e2" font-size="13">core.js · three.module.js (r160)</text>
+        <!-- connectors -->
+        <g stroke="#2dd4bf" stroke-opacity=".45" stroke-width="1.4" fill="none">
+          <path d="M450 64v28M450 134v28M450 208v28"/>
+        </g>
+        <g fill="#2dd4bf" opacity=".7">
+          <circle cx="450" cy="64" r="2.4"/><circle cx="450" cy="134" r="2.4"/><circle cx="450" cy="208" r="2.4"/>
+        </g>
+        <text x="60" y="150" fill="#5c7370" font-size="11">a game never talks to three.js directly</text>
+      </svg>
+      <div class="dnote">Everything is generated in code — the city, every texture, every mesh, every sound.</div>
+    </div>
+
+    <div class="demo-grid">
+      <a class="demo-card" href="https://drsamonline.github.io/neon-games/dead-zone/">
+        <span class="tag">play · built on neon-engine</span>
+        <h3>Dead Zone</h3>
+        <p>Endless zombie survival. No timer, no end — the horde escalates as you level. Free to play in your browser, no install, no account.</p>
+        <span class="go">drsamonline.github.io/neon-games/dead-zone
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </a>
+      <a class="demo-card" href="https://drsamonline.github.io/neon-games/neon-police/">
+        <span class="tag">play · built on neon-engine</span>
+        <h3>Neon Police</h3>
+        <p>Respond to crime in an open city. Arrest when you can, shoot when you must. Also free, also in-browser, also no install.</p>
+        <span class="go">drsamonline.github.io/neon-games/neon-police
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ================= GET STARTED ================= -->
+  <section class="sec wrap" id="start" aria-labelledby="start-h">
+    <div class="sec-head">
+      <div class="sec-kicker">// get started</div>
+      <h2 id="start-h">Clone it and ship a game</h2>
+      <p class="sub">The result is a static bundle with all paths relative, so it works from a sub-path — drag it onto a static host, or push to a repo and enable GitHub Pages.</p>
+    </div>
+
+    <div class="code" style="margin-top:26px">
+      <div class="bar"><span class="led"></span><span class="led"></span><span class="led"></span><span class="fname">terminal</span></div>
+<pre><span class="c"># 1. get the engine</span>
+git clone https://github.com/drsamonline/neon-engine.git
+<span class="k">cd</span> neon-engine
+
+<span class="c"># 2. serve it (ES modules need a server)</span>
+python3 -m http.server <span class="n">8080</span>
+
+<span class="c"># 3. open the example game — the smallest complete game on the engine</span>
+<span class="c">#    http://localhost:8080/example/</span>
+
+<span class="c"># optional: bundle everything for release (~915 KB in 2 requests)</span>
+python3 minify.py</pre>
+    </div>
+
+    <div class="panel">
+      <h3>Go deeper</h3>
+      <p class="sub" style="margin-top:8px">The repo ships full documentation alongside the source.</p>
+      <div class="row">
+        <a class="btn" href="https://github.com/drsamonline/neon-engine/blob/main/docs/GETTING-STARTED.md">Getting started</a>
+        <a class="btn" href="https://github.com/drsamonline/neon-engine/blob/main/docs/ARCHITECTURE.md">Architecture</a>
+        <a class="btn" href="https://github.com/drsamonline/neon-engine/blob/main/docs/API.md">API reference</a>
+        <a class="btn" href="https://github.com/drsamonline/neon-engine/blob/main/docs/MODS.md">Mods</a>
+        <a class="btn primary" href="https://github.com/drsamonline/neon-engine">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.1.1 1.7 1.2 1.7 1.2 1 1.7 2.7 1.2 3.4.9.1-.7.4-1.2.7-1.5-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.4 4.6 18.4 4.9 18.4 4.9c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5Z"/></svg>
+          View on GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FAQ ================= -->
+  <section class="sec wrap" id="faq" aria-labelledby="faq-h">
+    <div class="sec-head">
+      <div class="sec-kicker">// faq</div>
+      <h2 id="faq-h">Questions</h2>
+    </div>
+
+    <div class="faq">
+      <details open>
+        <summary>Do I need a build step or any dependencies?</summary>
+        <div class="ans">No. The engine has no build step and no dependencies — it is vanilla ES modules plus a vendored copy of three.js r160. <code>minify.py</code> can bundle everything for release, but it is optional.</div>
+      </details>
+      <details>
+        <summary>Where are the textures, models and sounds?</summary>
+        <div class="ans">There are none. Every texture, mesh and sound is generated at runtime, so there is no asset pipeline and nothing to download beyond the code. That is why a complete open-world shooter fits in about 915&nbsp;KB.</div>
+      </details>
+      <details>
+        <summary>What does it need to run?</summary>
+        <div class="ans">Any modern browser with WebGL2. The engine source is plain ES modules, so it needs to be served over HTTP — for example <code>python3 -m http.server 8080</code>. Games bundled with <code>minify.py</code> emit an IIFE and can launch from disk via <code>file://</code>.</div>
+      </details>
+      <details>
+        <summary>How do I add a weapon, enemy or biome?</summary>
+        <div class="ans">Add an entry to <code>WEAPONS</code> in <code>weapons.js</code>, to <code>ENEMY_TYPES</code> in <code>ai.js</code>, or a new generator method plus a weight on <code>World</code>. Extensions are data-first — the shop, HUD and firing code follow automatically.</div>
+      </details>
+      <details>
+        <summary>Is there a physics engine or worker threads?</summary>
+        <div class="ans">Deliberately not. Collision is AABB prisms, knockback is impulses and vehicles use an arcade model. Chunk building is synchronous but frame-budgeted to a 6&nbsp;ms slice, nearest-first, so travel never hitches.</div>
+      </details>
+      <details>
+        <summary>Can I use it in my own project?</summary>
+        <div class="ans">Yes. You may use, modify, remix and redistribute the engine — including in derivative works — as long as you credit <b>Dr. Sohil Momin</b> as the original creator. three.js and <code>BufferGeometryUtils</code> remain under their own MIT licences.</div>
+      </details>
+      <details>
+        <summary>What games are built with it?</summary>
+        <div class="ans">Two shipped games: <b>Dead Zone</b> (endless zombie survival) and <b>Neon Police</b> (open-city crime response). Both are free to play in the browser at <code>drsamonline.github.io/neon-games/</code>.</div>
+      </details>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="foot">
+    <span class="built">Built by <b>Dr. Sohil Momin</b> · Neon Engine v1.15.0 · MIT</span>
+    <nav class="links" aria-label="Footer">
+      <a href="https://github.com/drsamonline/neon-engine">Repository</a>
+      <a href="https://github.com/drsamonline/neon-engine/blob/main/docs/API.md">Docs</a>
+      <a href="https://drsamonline.github.io/neon-games/">Games</a>
+      <a href="https://github.com/drsamonline/neon-engine/blob/main/LICENSE">License</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  /* Subtle, dependency-free nicety: highlight the nav link for the section in
+     view. No external libraries, no build step. Does nothing when the user has
+     asked for reduced motion. */
+  (function () {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var links = Array.prototype.slice.call(document.querySelectorAll('.nav-links a[href^="#"]'));
+    var targets = links.map(function (a) { return document.querySelector(a.getAttribute('href')); });
+    if (!('IntersectionObserver' in window) || !targets.some(Boolean)) return;
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        var i = targets.indexOf(e.target);
+        links.forEach(function (a, j) { a.style.color = j === i ? 'var(--accent-2)' : ''; });
+      });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    targets.forEach(function (t) { if (t) io.observe(t); });
+  })();
+</script>
+
+</body>
+</html>
