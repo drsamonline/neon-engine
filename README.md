@@ -1,3 +1,25 @@
+<div align="center">
+
+# Neon Engine
+
+**A code-only open-world game engine for the browser.** No assets, no build step, no dependencies &mdash; every texture, mesh and sound is generated at runtime, so a complete open-world shooter ships in about 915&nbsp;KB and runs offline.
+
+[![Landing page](https://img.shields.io/badge/%E2%96%B6_LANDING_PAGE-neon--engine-2dd4bf?style=for-the-badge)](https://drsamonline.github.io/neon-engine/)
+[![Play Dead Zone](https://img.shields.io/badge/%E2%96%B6_PLAY-Dead_Zone-ff5a7a?style=for-the-badge)](https://drsamonline.github.io/neon-games/dead-zone/)
+[![Play Neon Police](https://img.shields.io/badge/%E2%96%B6_PLAY-Neon_Police-59d0ff?style=for-the-badge)](https://drsamonline.github.io/neon-games/neon-police/)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-2dd4bf.svg)](LICENSE)
+[![No dependencies](https://img.shields.io/badge/dependencies-0-2dd4bf.svg)](#)
+[![Offline](https://img.shields.io/badge/offline-ready-2dd4bf.svg)](#)
+[![three.js r160](https://img.shields.io/badge/three.js-r160-9a7cff.svg)](https://threejs.org)
+[![WebGL2](https://img.shields.io/badge/WebGL2-required-2dd4bf.svg)](#)
+
+**Landing page:** <https://drsamonline.github.io/neon-engine/> &nbsp;&middot;&nbsp; **Live demos:** [Dead Zone](https://drsamonline.github.io/neon-games/dead-zone/) &middot; [Neon Police](https://drsamonline.github.io/neon-games/neon-police/)
+
+</div>
+
+---
+
 # Neon Engine
 
 **A code-only open-world game engine for the browser.** No assets, no build step,
