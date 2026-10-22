@@ -15,27 +15,15 @@
 [![three.js r160](https://img.shields.io/badge/three.js-r160-9a7cff.svg)](https://threejs.org)
 [![WebGL2](https://img.shields.io/badge/WebGL2-required-2dd4bf.svg)](#)
 
-
 </div>
 
 ---
 
-
-**A code-only open-world game engine for the browser.** No assets, no build step,
-no dependencies — every texture, mesh and sound is generated at runtime, so a
-complete open-world shooter ships at under 1 MB and runs offline.
-
 Created by **[Dr. Sohil Momin](https://github.com/drsamonline)**.
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-38f2c8.svg)](LICENSE)
-[![No dependencies](https://img.shields.io/badge/dependencies-0-38f2c8.svg)](#)
-[![Offline](https://img.shields.io/badge/offline-ready-38f2c8.svg)](#)
-[![three.js r160](https://img.shields.io/badge/three.js-r160-9a7cff.svg)](https://threejs.org)
 
 ## Play the games built with it
 
 Both games are free to play, right in your browser — no install, no account.
-
 
 | Game | What it is | Source |
 | --- | --- | --- |
@@ -44,7 +32,7 @@ Both games are free to play, right in your browser — no install, no account.
 
 ---
 
-# Neon Engine
+## Neon Engine
 
 A small, dependency-light WebGL game engine for **open-world browser shooters**.
 It powers two shipped games — *Dead Zone* (zombie survival) and *Neon Police*
