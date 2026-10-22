@@ -5,6 +5,7 @@
 **A code-only open-world game engine for the browser.** No assets, no build step, no dependencies &mdash; every texture, mesh and sound is generated at runtime, so a complete open-world shooter ships in about 915&nbsp;KB and runs offline.
 
 [![Landing page](https://img.shields.io/badge/%E2%96%B6_LANDING_PAGE-neon--engine-2dd4bf?style=for-the-badge)](https://drsamonline.github.io/neon-engine/)
+[![All projects](https://img.shields.io/badge/All%20projects-drsamonline.github.io-2dd4bf?style=for-the-badge)](https://drsamonline.github.io/)
 [![Play Dead Zone](https://img.shields.io/badge/%E2%96%B6_PLAY-Dead_Zone-ff5a7a?style=for-the-badge)](https://drsamonline.github.io/neon-games/play/dead-zone/)
 [![Play Neon Police](https://img.shields.io/badge/%E2%96%B6_PLAY-Neon_Police-59d0ff?style=for-the-badge)](https://drsamonline.github.io/neon-games/play/neon-police/)
 
