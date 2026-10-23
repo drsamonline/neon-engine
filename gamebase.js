@@ -422,6 +422,17 @@ export class GameBase {
       this.renderer.setSize(innerWidth, innerHeight);
       if (this.bloom) this.bloom.setSize(innerWidth, innerHeight);
     });
+
+    // Auto-pause when the tab is hidden or the window loses focus. Without this
+    // the world keeps simulating in the background (requestAnimationFrame is
+    // throttled, not stopped) and — since the browser drops pointer lock on blur —
+    // you can be killed while looking at another window. Resuming is always
+    // explicit: coming back to the tab never un-pauses by itself.
+    const autoPause = () => {
+      if (this.running && !(this.replay && this.replay.playing) && !this.killCam) this.pause();
+    };
+    document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
+    addEventListener('blur', autoPause);
   }
 
   overlay(title, sub, hint, btn) {
