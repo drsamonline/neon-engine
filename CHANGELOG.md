@@ -3,6 +3,24 @@
 All notable changes to the Neon Engine and its games.
 Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://semver.org/).
 
+## [1.24.0] — 2026-10-23
+
+### Added — the game pauses when you look away
+Alt-tabbing away (or hiding the tab) used to leave the world running: enemies kept
+attacking, the director kept spawning, and — because the browser drops pointer lock
+on blur — you could come back to a death screen you never saw. The engine now
+**auto-pauses on `visibilitychange` (tab hidden) and on window `blur`**, and never
+un-pauses by itself: resuming is always explicit. The death cam and replay are left
+alone, so a kill cam is not interrupted mid-shot.
+
+### Fixed — package.json version had drifted
+`package.json` still read `1.15.0` while the changelog was at `1.23.0`. It now
+tracks the changelog.
+
+### Audit
+The headless smoke test now dispatches a real `blur` and asserts the game pauses
+(`running === false`) and then resumes cleanly — so this can never silently regress.
+
 ## [1.23.0] — 2026-10-20
 
 The safe house is now a real fortification, and four bugs you reported are fixed.
