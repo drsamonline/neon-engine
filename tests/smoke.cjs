@@ -83,6 +83,20 @@ async function main() {
     if (run.frames === null) fail('renderer.info.render.frame unavailable');
     else if (run.frames < 1) fail('renderer rendered no frames');
 
+    // auto-pause on window blur — the world must not keep simulating while the
+    // player is away from the tab (they could otherwise be killed off-screen)
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await new Promise((r) => setTimeout(r, 400));
+    const pausedOnBlur = await page.evaluate(() => window.__game.running === false);
+    console.log('blur-pause:', pausedOnBlur);
+    if (!pausedOnBlur) fail('game did not auto-pause on window blur');
+    // and it must resume cleanly afterwards
+    await page.evaluate(() => { const g = window.__game; if (typeof g.start === 'function') g.start(); });
+    await new Promise((r) => setTimeout(r, 400));
+    const resumed = await page.evaluate(() => window.__game.running === true);
+    console.log('resume-after-blur:', resumed);
+    if (!resumed) fail('game did not resume after an auto-pause');
+
     const real = errors.filter((e) => !/favicon|Failed to load resource|WebGL|software|swiftshader/i.test(e));
     if (real.length) fail('page errors:\n  ' + real.join('\n  '));
   } catch (e) {
