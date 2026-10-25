@@ -9,7 +9,7 @@
 [![Play Dead Zone](https://img.shields.io/badge/%E2%96%B6_PLAY-Dead_Zone-ff5a7a?style=for-the-badge)](https://drsamonline.github.io/neon-games/play/dead-zone/)
 [![Play Neon Police](https://img.shields.io/badge/%E2%96%B6_PLAY-Neon_Police-59d0ff?style=for-the-badge)](https://drsamonline.github.io/neon-games/play/neon-police/)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-2dd4bf.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-PolyForm_Noncommercial_1.0.0-2dd4bf.svg)](LICENSE)
 [![No dependencies](https://img.shields.io/badge/dependencies-0-2dd4bf.svg)](#)
 [![Offline](https://img.shields.io/badge/offline-ready-2dd4bf.svg)](#)
 [![three.js r160](https://img.shields.io/badge/three.js-r160-9a7cff.svg)](https://threejs.org)
@@ -178,6 +178,6 @@ If you ever want real files instead, drop them in and swap `Music` for an
 
 Free to play. You may use, modify, remix and redistribute the engine — including in
 derivative works — **as long as you credit Dr. Sohil Momin as the original
-creator**. three.js and `BufferGeometryUtils` remain under their own MIT licences.
+creator**. three.js and `BufferGeometryUtils` remain under their own PolyForm Noncommercial licences.
 
 See [LICENSE](LICENSE) for the full terms.
