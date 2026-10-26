@@ -35,7 +35,7 @@ No. A line in your repository or documentation satisfies it.
 
 ### What about three.js?
 
-`three.module.js` and `BufferGeometryUtils.js` are MIT-licensed and keep their own
+`three.module.js` and `BufferGeometryUtils.js` are PolyForm Noncommercial-licensed and keep their own
 terms. This licence covers the Neon Engine and its games only.
 
 ### Is there a warranty?
