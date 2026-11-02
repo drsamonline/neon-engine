@@ -138,16 +138,20 @@ The repo ships two headless tests. They need `puppeteer-core` and a Chromium bin
 
 ```bash
 NODE_PATH=$(npm root -g) node tests/smoke.cjs      # does it boot clean?
-NODE_PATH=$(npm root -g) node tests/audit.cjs      # does everything actually run?
+NODE_PATH=$(npm root -g) node tests/world.cjs      # are the buildings real places?
 ```
 
-`audit.cjs` executes every biome generator, every weapon (normal and alt fire, plus
-reload), every panel, every game mode, the companion, vehicles, crafting, save slots
-and New Game+ — and it runs a **static wiring check** that every subsystem is really
-called by the game loop. That last one exists because a method can exist, pass a
-direct call, and still never run in the real game.
+`world.cjs` boots the same page and then inspects the world the game actually built:
+it finds a two-floor building, and asserts the upper floor is a slab at 3.3 m, that the
+slab is cut by a stairwell, that the inside staircase rises in steps the controller can
+climb (0.55 m or less each), that nothing sits over the stair, that the upper-floor loot
+cannot be collected from the ground floor, and that a single-floor building stays
+single-floor. It is the only test that would notice a building that generates, renders,
+and cannot be entered.
 
-Point it at your own page with `AUDIT_PAGE=/mygame/index.html node tests/audit.cjs`.
+`tests/audit.cjs` — referenced by earlier versions of this page and added in an earlier
+release — is **not in the repository**. The wiring check it described does not ship, so
+the two tests above are the whole suite.
 
 ## Deploying
 

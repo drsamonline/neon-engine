@@ -3,6 +3,39 @@
 All notable changes to the Neon Engine and its games.
 Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://semver.org/).
 
+## [1.24.1] — 2026-11-02
+
+### Added — a test that would notice a building you cannot enter
+
+`tests/world.cjs` boots the bundled example in headless Chromium and then inspects the
+world the game actually built. It finds a two-floor building in the city and asserts,
+in 18 checks: the upper floor is a slab at 3.3 m; the slab spans the building; the slab
+is cut by a stairwell wider than 1.5 m; an inside staircase exists **under the upper
+floor** (the outside stair to the roof cannot stand in for it); every rise is within the
+controller's own 0.55 m step limit; the stair reaches the slab; no slab piece sits over
+the stair; the upper floor carries loot; no upper-floor loot floats over the stairwell;
+that loot cannot be collected from the ground floor; the interior rect covers the second
+floor (`isIndoor` true on it, false above the roof); and a single-floor building stays
+single-floor. CI runs it after the smoke test.
+
+Checked to bite, four ways: no two-floor buildings at all (1 fails), the stairwell
+filled in (2 fail), the inside staircase removed (3 fail), upper-floor loot dropped to
+the floor (1 fails).
+
+### Fixed — the documentation named a test that is not in the repository
+
+`docs/GETTING-STARTED.md` told contributors to run `tests/audit.cjs` and described its
+wiring check in detail. The file is not in the repository (it was added in an earlier
+release and is no longer present), so the page now says so plainly and lists the two
+tests that do ship.
+
+### Changed — the roadmap caught up with the engine
+
+"Multi-floor building interiors" and "Drivable vehicles" were listed as *Planned* while
+both ship today: `_enterable(..., floors)` builds the second floor for 40% of the city's
+enterable buildings, and `vehicle.js` is drivable with throttle, steering and a
+handbrake. Both moved to *Shipped*, with the honest limit stated — two floors, city only.
+
 ## [1.24.0] — 2026-10-23
 
 ### Added — the game pauses when you look away

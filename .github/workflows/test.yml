@@ -41,3 +41,10 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/chromium-browser
         run: node tests/smoke.cjs
+
+      # The smoke test proves the engine boots; this proves the buildings it
+      # generates are places a player can get into and up through.
+      - name: World structure test
+        env:
+          CHROME_PATH: /usr/bin/chromium-browser
+        run: node tests/world.cjs
