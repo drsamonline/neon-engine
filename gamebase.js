@@ -227,7 +227,11 @@ export class GameBase {
     this._applyProgression();
     if (this.cfg.campaign) {
       this.campaign = new Campaign({ hud: this.hud, audio: this.audio, music: this.music,
-        onReward: (c) => { this.progression.addCoins(c); this.meta.add('coins', c); } });
+        onReward: (c) => { this.progression.addCoins(c); this.meta.add('coins', c); },
+        onChange: () => this._saveCampaign() });
+      // the chain lives in the save, so a reload resumes where it stopped
+      if (this.cfg.persist) this.campaign.restore(this._loadCampaign());
+      this._campaignSaveT = 0;
     }
     this._initExtras();
     this._bindUI();
@@ -456,7 +460,20 @@ export class GameBase {
     this._baseBuffs();
     this.audio.resume();
     if (this.music) this.music.start('calm');
-    if (this.campaign && !this.campaign.active && !this.campaign.done) this.campaign.start();
+    if (this.campaign && !this.campaign.active && !this.campaign.done) this.campaign.resume();
+  }
+
+  _campaignKey() { return `${this.cfg.progressionKey ?? 'ow-progress'}-campaign`; }
+
+  _loadCampaign() {
+    try { return JSON.parse(localStorage.getItem(this._campaignKey()) || 'null'); }
+    catch (_) { return null; }   // an unreadable save is no save, not a crash
+  }
+
+  _saveCampaign() {
+    if (!this.cfg.persist || !this.campaign) return;
+    try { localStorage.setItem(this._campaignKey(), JSON.stringify(this.campaign.serialize())); }
+    catch (_) { /* storage full or blocked: the run continues, the save does not */ }
   }
 
   pause() {
@@ -855,7 +872,12 @@ export class GameBase {
       const t = this.stats.time;
       this.director.difficulty = this.cfg.difficulty ? this.cfg.difficulty(this)
         : (1 + 2.6 * (1 - Math.exp(-t / 180)) + t / 900);
-      if (this.campaign && this.campaign.active) this.campaign.update(dt);
+      if (this.campaign && this.campaign.active) {
+        this.campaign.update(dt);
+        // a mission can take minutes; persist the progress inside it too
+        this._campaignSaveT += dt;
+        if (this._campaignSaveT >= 5) { this._campaignSaveT = 0; this._saveCampaign(); }
+      }
       if (this.input.once('replay')) this.toggleReplay();
       if (this.cfg.onGameplayKeys) this.cfg.onGameplayKeys(this);
       if (this.store) this.store.priceMod = this.repMod || 1;

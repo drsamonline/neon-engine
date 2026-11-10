@@ -1,6 +1,6 @@
 // campaign.js — a short scripted mission chain. Each mission is a single tracked
 // metric plus a goal, so it works with any game that feeds the metrics in.
-// Fully offline; progress lives in the save.
+// Fully offline; progress lives in the save (serialize/restore).
 
 export const MISSIONS = [
   { id: 'm1', title: 'FIRST CONTACT', brief: 'Put down 8 of the infected.', metric: 'kills', goal: 8, reward: 200 },
@@ -21,15 +21,20 @@ export const MISSIONS = [
   { id: 'm16', title: 'LEGEND', brief: 'Survive to ten minutes and clear 100.', metric: 'kills', goal: 100, reward: 3000 },
 ];
 
+// The gap between a finished mission and the next one's brief.
+const TRANSITION = 2.2;
+
 export class Campaign {
   constructor(hooks = {}) {
     this.hud = hooks.hud; this.audio = hooks.audio; this.music = hooks.music;
     this.onReward = hooks.onReward || null;
+    this.onChange = hooks.onChange || null;   // (campaign) -> persist the save
     this.index = 0;
     this.progress = 0;
     this.active = false;
     this.done = false;
     this.timer = 0;
+    this.transition = 0;                      // seconds left in the between-mission banner
   }
 
   get current() { return MISSIONS[this.index] || null; }
@@ -37,13 +42,42 @@ export class Campaign {
   start(index = 0) {
     this.index = Math.max(0, Math.min(MISSIONS.length - 1, index));
     this.active = true; this.done = false;
+    this.transition = 0;
     this._enter();
   }
 
-  _enter() {
+  /* Pick up from a restored save without wiping the progress inside it. */
+  resume() {
+    if (this.done) { this.done = true; this.active = false; return; }
+    this.active = true;
+    this.transition = 0;
+    this._enter(true);
+  }
+
+  serialize() {
+    return { v: 1, index: this.index, progress: Math.round(this.progress * 100) / 100, done: this.done };
+  }
+
+  /* Returns false (and changes nothing) when the state cannot be trusted. */
+  restore(state) {
+    if (!state || typeof state !== 'object') return false;
+    const i = Number(state.index);
+    if (!Number.isInteger(i) || i < 0 || i > MISSIONS.length) return false;
+    const p = Number(state.progress);
+    this.index = Math.min(MISSIONS.length, i);
+    this.progress = Number.isFinite(p) && p > 0 ? p : 0;
+    this.done = !!state.done || this.index >= MISSIONS.length;
+    this.active = false;
+    this.transition = 0;
+    if (this.done) this.progress = 0;
+    return true;
+  }
+
+  _enter(keepProgress = false) {
     const m = this.current;
     if (!m) { this._finish(); return; }
-    this.progress = 0; this.timer = 0;
+    if (!keepProgress) this.progress = 0;
+    this.timer = 0;
     if (this.hud) {
       this.hud.banner(m.title, m.brief);
       this.hud.setObjective(`MISSION ${this.index + 1}/${MISSIONS.length} — ${m.title}`, m.brief);
@@ -53,13 +87,27 @@ export class Campaign {
 
   /* the game feeds these in */
   bump(metric, n = 1) {
-    if (!this.active || this.done) return;
+    if (!this.active || this.done || this.transition > 0) return;
     const m = this.current;
     if (m && m.metric === metric) this.progress += n;
   }
 
   update(dt) {
     if (!this.active || this.done) return;
+
+    // Between missions: no objective is running, so nothing counts towards the
+    // next one. This used to be a setTimeout that left the finished mission's
+    // progress live, and every frame in the gap credited it to the mission after
+    // — one kill streak cleared two missions and paid both rewards.
+    if (this.transition > 0) {
+      this.transition -= dt;
+      if (this.transition <= 0) {
+        this.transition = 0;
+        if (!this.done) this._enter();
+      }
+      return;
+    }
+
     const m = this.current; if (!m) return;
     if (m.metric === 'seconds') this.progress += dt;
     const done = this.progress >= m.goal;
@@ -70,19 +118,24 @@ export class Campaign {
       this.hud.setObjective(`MISSION ${this.index + 1}/${MISSIONS.length} — ${m.title}`, `${m.brief}   (${shown})`);
     }
     if (!done) return;
+    this._complete(m);
+  }
 
-    // mission complete
+  _complete(m) {
+    this.progress = 0;          // never carry a finished mission's count forward
+    this.transition = TRANSITION;
     if (this.onReward) this.onReward(m.reward);
     if (this.hud) this.hud.banner('MISSION COMPLETE', `+${m.reward} coins`);
     if (this.music) this.music.sting('win');
     this.index++;
-    if (this.index >= MISSIONS.length) this._finish();
-    else setTimeout(() => { if (this.active) this._enter(); }, 2200);
+    if (this.index >= MISSIONS.length) { this._finish(); return; }
+    if (this.onChange) this.onChange(this);
   }
 
   _finish() {
-    this.done = true; this.active = false;
+    this.done = true; this.active = false; this.transition = 0; this.progress = 0;
     if (this.hud) { this.hud.banner('CAMPAIGN COMPLETE', 'you cleared every mission'); this.hud.setObjective('CAMPAIGN COMPLETE', 'free roam'); }
     if (this.music) this.music.sting('win');
+    if (this.onChange) this.onChange(this);
   }
 }

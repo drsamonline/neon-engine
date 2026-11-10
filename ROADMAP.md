@@ -25,7 +25,7 @@ What is done, what is planned, and what is deliberately out of scope.
 - Gamepad support with haptics
 - Weapon attachments (optic / muzzle / magazine / grip)
 - Positional convolution reverb (indoor vs street)
-- An eight-mission scripted campaign (`?campaign=1`)
+- A sixteen-mission scripted campaign (`?campaign=1`)
 - Two-floor building interiors in the city: a slab at 3.3 m cut by a stairwell, an
   inside staircase within the controller's step limit, and loot that can only be
   reached from upstairs (`tests/world.cjs` asserts every one of those)

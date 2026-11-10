@@ -24,6 +24,10 @@ jobs:
         with:
           node-version: '20'
 
+      # campaign.js imports nothing, so its contract is checked without a browser
+      - name: Campaign test
+        run: node tests/campaign.cjs
+
       - name: Install Chromium
         run: |
           sudo apt-get update

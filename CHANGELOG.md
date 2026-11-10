@@ -3,6 +3,34 @@
 All notable changes to the Neon Engine and its games.
 Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed — one kill streak cleared two missions, and the chain forgot itself on reload
+
+`campaign.js` advanced the mission index as soon as a goal was met and only reset the
+count 2.2 s later, in a `setTimeout`. Every frame inside that gap still ran `update()`
+with the finished mission's progress still in place, so it was measured against the
+*next* mission's goal and completed that too. Reproduced before touching anything: eight
+kills — the whole of mission 1 — paid mission 1 (200) and mission 2 (300) in 0.66 s, and
+the same shape could carry a kill count through several missions.
+
+The gap is now a `transition` counter ticked by `update(dt)`, so it pauses with the game
+instead of firing from a timer while the pause menu is open. Progress is zeroed on
+completion and nothing — not `bump()`, not `update()` — counts while the gap runs.
+
+The header comment claimed "progress lives in the save" and it did not: every reload
+restarted at mission 1. `serialize()` / `restore(state)` are the pair now, with
+`gamebase.js` writing `<progressionKey>-campaign` on every mission change and every 5 s
+inside a mission, and resuming through `resume()` instead of `start()`.
+
+`restore()` refuses what it cannot trust — `null`, a string, a missing or fractional or
+out-of-range index — returns `false` and leaves the campaign at mission 1 rather than
+throwing; a junk `progress` in an otherwise valid save becomes 0.
+
+`tests/campaign.cjs` (new, 80 checks, no browser) proves all of it, and CI runs it
+before the Chromium steps. Mutation-checked: deleting the progress reset fails 3 checks,
+deleting the transition guard fails 10.
+
 ## [1.24.1] — 2026-11-02
 
 ### Added — a test that would notice a building you cannot enter
