@@ -197,7 +197,15 @@ Installs: `bed` (double regen) · `stash` · `turret` · `forge` (scrap over tim
 ### `campaign.js`
 `MISSIONS` (16) · `new Campaign(hooks)`
 
-`start(index)` · `bump(metric, n)` · `update(dt)` · `current` · `index` · `done`
+`start(index)` · `resume()` · `bump(metric, n)` · `update(dt)` · `current` · `index` ·
+`done` · `transition` · `serialize()` · `restore(state)`
+
+A finished mission pays its reward once and then holds for `transition` (2.2 s) before
+the next brief: nothing counts during that gap and no progress is carried into the next
+mission. `serialize()` / `restore(state)` are the save pair — `restore` refuses a state
+it cannot trust (returns `false`, leaves the campaign at mission 1) rather than throwing,
+and `resume()` continues from the restored index with the progress inside it intact.
+`new Campaign({ onChange })` is called whenever the save should be written.
 
 Metrics: `kills` · `stashes` · `headshots` · `upgrades` · `bosses` · `seconds` ·
 `hordeKills` · `cores` · `crafts` · `extractions` · `defences` · `arrests`
