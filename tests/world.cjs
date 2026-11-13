@@ -1,9 +1,10 @@
 // tests/world.cjs — headless structural test for building interiors.
 //
-// Boots the bundled example in headless Chromium (the same harness smoke.cjs
-// uses) and then inspects the REAL world the game built — not a mock. It proves
-// the two-floor interior is not just code that runs but a place a player can
-// reach: a slab at 3.3 m split by a stairwell, an inside staircase whose every
+// Boots the example game in headless Chromium through the shared harness page
+// (tests/harness.cjs — `example/index.html` was deleted by the 2026-11-05 page
+// audit and is not restored for a test) and then inspects the REAL world the
+// game built — not a mock. It proves the two-floor interior is not just code
+// that runs but a place a player can reach: a slab at 3.3 m split by a stairwell, an inside staircase whose every
 // rise is within the controller's step limit, open air above the stair, and
 // upper-floor loot that a player on the ground floor cannot pick up.
 //
@@ -13,44 +14,16 @@
 //
 // Run: node tests/world.cjs        (set CHROME_PATH to override the browser)
 'use strict';
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
 const puppeteer = require('puppeteer-core');
+const { serve, launch, open, realErrors } = require('./harness.cjs');
 
-const ROOT = path.resolve(__dirname, '..');
 const PORT = Number(process.env.PORT || 8124);
-const CHROME = process.env.CHROME_PATH || process.env.CHROME_BIN || '/usr/bin/chromium';
 
 // The first-person controller refuses a step taller than 0.55 m (player.js:
 // `if (c.height > this.pos.y + 0.55) continue`). A staircase whose rise exceeds
 // it is a wall, so the test uses the controller's own number rather than one
 // invented here.
 const STEP_LIMIT = 0.55;
-
-const TYPES = {
-  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
-  '.png': 'image/png', '.webmanifest': 'application/manifest+json',
-};
-
-function serve() {
-  return new Promise((resolve, reject) => {
-    const server = http.createServer((req, res) => {
-      let rel = decodeURIComponent((req.url || '/').split('?')[0]);
-      if (rel === '/') rel = '/example/index.html';
-      const file = path.normalize(path.join(ROOT, rel));
-      if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
-        res.writeHead(404); res.end('not found'); return;
-      }
-      res.writeHead(200, { 'Content-Type': TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream' });
-      fs.createReadStream(file).pipe(res);
-    });
-    server.on('error', reject);
-    server.listen(PORT, '127.0.0.1', () => resolve(server));
-  });
-}
 
 let pass = 0;
 const failures = [];
@@ -60,22 +33,14 @@ function ok(name, cond, detail) {
 }
 
 async function main() {
-  const server = await serve();
+  const server = await serve(PORT);
   let browser;
   try {
-    browser = await puppeteer.launch({
-      executablePath: CHROME,
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--use-gl=angle',
-             '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--window-size=800,600'],
-    });
+    browser = await launch(puppeteer);
     const page = await browser.newPage();
     await page.setViewport({ width: 800, height: 600 });
-    const errors = [];
-    page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 
-    await page.goto(`http://127.0.0.1:${PORT}/example/index.html`, { waitUntil: 'load', timeout: 60000 });
-    await page.waitForFunction('window.__game && window.__game.world', { timeout: 60000 });
+    const { errors } = await open(page, PORT, 'window.__game && window.__game.world');
 
     const scan = await page.evaluate((STEP) => {
       const W = window.__game.world;
@@ -204,7 +169,7 @@ async function main() {
     ok('a single-floor building exists to compare against', !!o, 'no plain Building POI found in the same scan');
     if (o) ok('a single-floor building has no second-floor slab', o.slabAt33 === 0, o.slabAt33 + ' slab colliders at 3.3 m');
 
-    const real = errors.filter((e) => !/favicon|Failed to load resource|WebGL|software|swiftshader/i.test(e));
+    const real = realErrors(errors);
     ok('no page errors during world generation', real.length === 0, real.join(' | '));
   } catch (e) {
     failures.push('harness: ' + (e && e.message ? e.message : String(e)));

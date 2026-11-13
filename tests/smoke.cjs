@@ -1,65 +1,32 @@
 // tests/smoke.cjs — headless smoke test for Neon Engine.
 //
-// Boots the bundled example (example/index.html) in headless Chromium via
-// puppeteer-core, starts the game and asserts the engine actually initialises
-// and renders a frame. A syntax check (node --check) cannot catch runtime
-// wiring errors — this can.
+// Boots the example game in headless Chromium via puppeteer-core, starts it and
+// asserts the engine actually initialises and renders a frame. A syntax check
+// (node --check) cannot catch runtime wiring errors — this can.
+//
+// The page is the shared harness page (tests/harness.cjs), not a file in the
+// repository: `example/index.html` was deleted by the 2026-11-05 page audit and
+// is listed under `deleted` in PAGES.json, so it is not restored for a test.
 //
 // Run: node tests/smoke.cjs        (set CHROME_PATH to override the browser)
 'use strict';
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
 const puppeteer = require('puppeteer-core');
+const { serve, launch, open, realErrors } = require('./harness.cjs');
 
-const ROOT = path.resolve(__dirname, '..');
 const PORT = Number(process.env.PORT || 8123);
-const CHROME = process.env.CHROME_PATH || process.env.CHROME_BIN || '/usr/bin/chromium';
-
-const TYPES = {
-  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
-};
-
-function serve() {
-  return new Promise((resolve, reject) => {
-    const server = http.createServer((req, res) => {
-      let rel = decodeURIComponent((req.url || '/').split('?')[0]);
-      if (rel === '/') rel = '/example/index.html';
-      const file = path.normalize(path.join(ROOT, rel));
-      if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
-        res.writeHead(404); res.end('not found'); return;
-      }
-      res.writeHead(200, { 'Content-Type': TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream' });
-      fs.createReadStream(file).pipe(res);
-    });
-    server.on('error', reject);
-    server.listen(PORT, '127.0.0.1', () => resolve(server));
-  });
-}
 
 async function main() {
-  const server = await serve();
+  const server = await serve(PORT);
   let browser;
   let failed = false;
   const fail = (m) => { console.error('FAIL: ' + m); failed = true; };
 
   try {
-    browser = await puppeteer.launch({
-      executablePath: CHROME,
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--use-gl=angle',
-             '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--window-size=800,600'],
-    });
+    browser = await launch(puppeteer);
     const page = await browser.newPage();
     await page.setViewport({ width: 800, height: 600 });
-    const errors = [];
-    page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-    page.on('console', (m) => { if (m.type() === 'error') errors.push('console.error: ' + m.text()); });
 
-    await page.goto(`http://127.0.0.1:${PORT}/example/index.html`, { waitUntil: 'load', timeout: 60000 });
-    await page.waitForFunction('window.__game && window.__game.scene', { timeout: 60000 });
+    const { errors } = await open(page, PORT, 'window.__game && window.__game.scene');
 
     const boot = await page.evaluate(() => ({
       hasScene: !!window.__game.scene,
@@ -97,7 +64,7 @@ async function main() {
     console.log('resume-after-blur:', resumed);
     if (!resumed) fail('game did not resume after an auto-pause');
 
-    const real = errors.filter((e) => !/favicon|Failed to load resource|WebGL|software|swiftshader/i.test(e));
+    const real = realErrors(errors);
     if (real.length) fail('page errors:\n  ' + real.join('\n  '));
   } catch (e) {
     fail(e && e.message ? e.message : String(e));

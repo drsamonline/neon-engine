@@ -3,6 +3,49 @@
 All notable changes to the Neon Engine and its games.
 Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://semver.org/).
 
+## [1.24.2] — 2026-11-13
+
+### Fixed — both headless tests had been red since 2026-11-05, and could not say why
+
+`tests/smoke.cjs` and `tests/world.cjs` both booted `example/index.html`. The page audit
+deleted that page on 2026-11-05 and listed it under `deleted` in `PAGES.json`, so the
+server answered **404**, `window.__game` never appeared, and both tests failed on
+`Waiting failed: 60000ms exceeded` — **0 passing, 1 failing each**. The engine's only
+runtime gate had been measuring nothing for eight days, and the report named neither the
+page nor the 404.
+
+`example/index.html` is **not** restored: the audit's decision stands and a page a sweep
+deleted is not coming back for a test. Instead `tests/harness.cjs` serves its own host
+page — synthesized in memory, from the wiring `docs/GETTING-STARTED.md` §2 already
+specifies (the `three` import map, a `#game` canvas, hud.css) — and both tests boot that.
+Nothing is written to the repository, so no sweep can delete the suite's entry point.
+
+Two further defects found on the way, both fixed:
+
+- **The browser path was hard-coded** to `/usr/bin/chromium`, which is not where this
+  machine keeps it. The harness now probes `CHROME_PATH`, `CHROME_BIN`, `/usr/local/bin`,
+  `/usr/bin`, the macOS bundle — and if none exists it says so by name instead of
+  launching a path that cannot exist. `test.yml` no longer pins `CHROME_PATH`, so CI
+  finds its own Chromium too.
+- **A boot failure reported only a timeout.** `open()` now collects page errors and every
+  4xx/5xx response and prints them with the failure, so the next breakage reads
+  `404 …/example/index.html`, not `waiting failed`.
+
+### Added — `tests/pages.cjs`, the guard that keeps it fixed
+
+16 assertions, no browser, about a second: every path `PAGES.json` lists as deleted is
+still absent; the harness page is not a file in the repository and is not on the delete
+list; the harness page carries the import map, the canvas and hud.css; both browser tests
+require the harness and neither calls `page.goto()` (navigation lives in one place); and
+the browser path is probed rather than assumed. CI runs it first.
+
+Proof, not a claim: `tests/pages.cjs` **16/16**, `tests/smoke.cjs` **passed** (boot,
+2 frames rendered, blur-pause and resume), `tests/world.cjs` **18/18 assertions** — the
+first green run of either since 2026-11-05. Mutation-checked five ways, all red:
+`example/index.html` restored (1 fails), the harness page backed by a real file (1), the
+`three` import map removed (1), the browser path hard-coded to one directory (1), a test
+navigating itself (1).
+
 ## [1.24.1] — 2026-11-02
 
 ### Added — a test that would notice a building you cannot enter

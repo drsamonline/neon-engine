@@ -37,14 +37,19 @@ jobs:
         run: |
           for f in *.js; do node --check "$f"; done
 
+      # The page audit's deletions are what took this suite down once (a deleted
+      # example/index.html, and two tests that booted it). This runs in a second
+      # and needs no browser, so it goes first and it fails loudly.
+      - name: Page-audit guard
+        run: node tests/pages.cjs
+
+      # CHROME_PATH is deliberately not set: tests/harness.cjs probes for the
+      # browser, so a machine that puts it somewhere else still runs the suite
+      # instead of timing out on a path that does not exist.
       - name: Headless smoke test
-        env:
-          CHROME_PATH: /usr/bin/chromium-browser
         run: node tests/smoke.cjs
 
       # The smoke test proves the engine boots; this proves the buildings it
       # generates are places a player can get into and up through.
       - name: World structure test
-        env:
-          CHROME_PATH: /usr/bin/chromium-browser
         run: node tests/world.cjs

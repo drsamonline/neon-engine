@@ -134,12 +134,22 @@ game.cfg.extraPois = (out) => out.push({ x: 40, z: -20, type: 'ping', label: 'He
 
 ## 7. Check your work
 
-The repo ships two headless tests. They need `puppeteer-core` and a Chromium binary:
+The repo ships three tests. The first needs nothing but Node; the other two need
+`puppeteer-core` and a Chromium binary (set `CHROME_PATH` only if it is somewhere the
+harness does not look — it probes the usual places first):
 
 ```bash
+npm test                                           # all three, in order
+NODE_PATH=$(npm root -g) node tests/pages.cjs      # are the page audit's deletions still deleted?
 NODE_PATH=$(npm root -g) node tests/smoke.cjs      # does it boot clean?
 NODE_PATH=$(npm root -g) node tests/world.cjs      # are the buildings real places?
 ```
+
+Both browser tests boot `tests/harness.cjs`'s own host page rather than a file in the
+repository: the page audit deleted `example/index.html` (see `PAGES.json`), and a test
+that depends on a page a sweep can delete stops measuring anything the moment it goes.
+`pages.cjs` is what keeps that true — it asserts every deleted path stays absent, that
+the harness page is synthesized rather than stored, and that no test navigates itself.
 
 `world.cjs` boots the same page and then inspects the world the game actually built:
 it finds a two-floor building, and asserts the upper floor is a slab at 3.3 m, that the
