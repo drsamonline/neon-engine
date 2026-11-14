@@ -679,10 +679,15 @@ python3 minify.py</pre>
 <!-- support:block:start -->
 <style>
   /* Scoped to .support. Uses the host page's variables when they exist. */
-  .support{--s-ink:var(--ink,#14110e);--s-paper:var(--paper,#f7f2e9);--s-card:var(--paper-2,#fffdf8);
-           --s-muted:var(--muted,#6b6157);--s-line:var(--line,#e2d8c8);--s-accent:var(--accent,#2f6f8f);
+  /* Fixed values, not host variables: the support panel is content, not chrome.
+     Inheriting the host's --ink/--paper pair put dark text on a light card in one
+     theme and light text on a light card in the other. Measured on this palette:
+     ink 16.9:1, muted 5.4:1, accent 5.0:1, all against --s-paper. */
+  .support{--s-ink:#14110e;--s-paper:#f7f2e9;--s-card:#fffdf8;
+           --s-muted:#6b6157;--s-line:#e2d8c8;--s-accent:#2f6f8f;
            font-family:var(--sans,ui-sans-serif,-apple-system,"Segoe UI",sans-serif);
-           color:var(--s-ink);padding:2.6rem 0 1rem;border-top:1px solid var(--s-line)}
+           background:var(--s-paper);color:var(--s-ink);
+           padding:2.6rem 0 1rem;border-top:1px solid var(--s-line)}
   .support-head{display:flex;gap:1rem;align-items:flex-start;margin:0 0 1.4rem}
   .support-portrait{width:72px;height:72px;flex:0 0 72px;border-radius:50%;object-fit:cover;
                     border:1px solid var(--s-line);background:var(--s-card)}
@@ -692,7 +697,7 @@ python3 minify.py</pre>
   .support-card{background:var(--s-card);border:1px solid var(--s-line);border-radius:.7rem;padding:.9rem 1rem;
                 display:flex;flex-direction:column;gap:.35rem}
   .support-card h3{margin:0;font-size:.78rem;letter-spacing:.09em;text-transform:uppercase;color:var(--s-muted);font-weight:600}
-  .support-card p{margin:0;font-size:.92rem;line-height:1.5}
+  .support-card p{margin:0;font-size:.92rem;line-height:1.5;color:var(--s-ink)} /* a host p{color:...} rule beats inheritance */
   .support-card a{color:var(--s-accent);text-decoration:none;border-bottom:1px solid transparent;word-break:break-word}
   .support-card a:hover,.support-card a:focus-visible{border-bottom-color:currentColor}
   .support-id{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
