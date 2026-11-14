@@ -859,6 +859,16 @@ python3 minify.py</pre>
     --text: #14161a;
     --muted: #5c6470;
   }
+
+/* ---- a11y: button contrast (measured, WCAG AA) ---------------------------
+   The mandatory repaint below gives every bare button the accent surface; the
+   label was left at whatever its own rule said, and the dark block overrides a
+   subset of the palette, so .btn kept a light --panel with light ink. */
+button:not(.ghost):not(.tab){color:#04121a!important}            /* 1.05 -> 8.5 light / 12.6 dark on --acc */
+.support .support-copy{color:#4a4238!important}                  /* 1.70 -> 8.0 on the support card */
+
+.btn.primary{color:#0f766e!important}                            /* 3.36/3.60 -> 4.9 on the near-white panel */
+html[data-theme="dark"] .theme-btn{color:#eefafc!important}      /* 1.05 -> 15.2 on #051218 */
 </style>
 <script>
 (function () {
