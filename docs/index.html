@@ -867,8 +867,17 @@ python3 minify.py</pre>
 button:not(.ghost):not(.tab){color:#04121a!important}            /* 1.05 -> 8.5 light / 12.6 dark on --acc */
 .support .support-copy{color:#4a4238!important}                  /* 1.70 -> 8.0 on the support card */
 
-.btn.primary{color:#0f766e!important}                            /* 3.36/3.60 -> 4.9 on the near-white panel */
+[data-theme="light"] .btn.primary{color:#0f766e!important}      /* 3.36/3.60 -> 4.9 on the near-white panel */
+[data-theme="dark"] .btn.primary{color:#4ccae0!important}       /* 3.47 -> 9.8 on #051218 */
 html[data-theme="dark"] .theme-btn{color:#eefafc!important}      /* 1.05 -> 15.2 on #051218 */
+
+/* ---- the two palettes, bridged -------------------------------------------
+   This page carries two token systems: --bg/--panel/--white (used by .btn) and
+   --bg/--card/--ink/--acc (used by the theme toggle). Completing either one
+   broke the other, because they disagree about what a panel is. Mapping the
+   first onto the second is one line per mode and nothing else moves. */
+html[data-theme="dark"]{--panel:var(--card);--white:var(--ink)}
+html[data-theme="light"]{--panel:var(--card);--white:var(--ink)}
 </style>
 <script>
 (function () {
