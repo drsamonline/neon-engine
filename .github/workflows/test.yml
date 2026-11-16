@@ -43,6 +43,13 @@ jobs:
       - name: Page-audit guard
         run: node tests/pages.cjs
 
+      # The campaign ships on by default and is sixteen missions long. Mission
+      # 12 was measured by a metric nothing fed, so the chain dead-ended at 12
+      # of 16 with no error. This reads the engine source for the wiring and
+      # walks all sixteen missions, in a second and a half, with no browser.
+      - name: Campaign wiring test
+        run: node tests/campaign.cjs
+
       # CHROME_PATH is deliberately not set: tests/harness.cjs probes for the
       # browser, so a machine that puts it somewhere else still runs the suite
       # instead of timing out on a path that does not exist.

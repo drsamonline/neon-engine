@@ -3,6 +3,51 @@
 All notable changes to the Neon Engine and its games.
 Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://semver.org/).
 
+## [1.24.3] — 2026-11-16
+
+### Fixed — the campaign dead-ended at mission 12 of 16, silently
+
+The campaign ships **on by default** (`example/game.js` → `campaign: true`) and it is
+sixteen missions long. Mission 12, **"GET OUT"**, is measured by the `extractions`
+metric — and nothing in the engine ever fed that metric. `modes.js` completed an
+extraction, paid the bonus and printed `EXTRACTED`, and the campaign never heard about
+it. The chain stopped at 12 for every player who got that far, with no error, no
+banner, and nothing in the objective line that said why. Sixteen missions were
+written; twelve were reachable.
+
+The repair is one line: `_modeExtraction` now calls `campaign.bump('extractions')` on
+the same frame it pays the extraction bonus.
+
+### Fixed — a restart inside the hand-off gap wiped the new run's progress
+
+Clearing a mission schedules the next one's banner 2.2 s later. Calling `start()` in
+that window left the old timer armed: it fired into the **new** run and reset its
+progress to zero, so the first kills of a restarted campaign were silently discarded.
+The pending hand-off now belongs to the run that scheduled it and is cleared by
+`start()` and `_finish()`.
+
+### Added — `tests/campaign.cjs`, the gate that keeps both fixed
+
+43 assertions, no browser, about a second and a half. Two kinds of check:
+
+- **The wiring.** For every metric a mission is measured by, either the campaign
+  accrues it itself (`TIME_METRICS` — `seconds`) or the engine source contains a
+  `campaign.bump('<metric>')`, and the module carrying it must be one `gamebase.js`
+  actually imports and installs. A new mission with an unwired metric fails here
+  instead of in someone's game. `campaign.js` now exports `MISSION_METRICS` and
+  `TIME_METRICS` for it.
+- **The run.** All sixteen missions are walked in order — correct mission, correct
+  reward, `done` at the end, no progress after completion, no progress from a metric
+  the current mission does not use, no leak across a mission boundary, and the restart
+  case above.
+
+`stepDelay` is a new constructor hook so the test does not spend 35 seconds waiting.
+
+Proof, not a claim: `tests/campaign.cjs` **43/43**, `tests/pages.cjs` **16/16**,
+`tests/smoke.cjs` **passed**, `tests/world.cjs` **18/18**. Mutation-checked three
+ways, all red: the `extractions` bump removed (2 fail), the stale-timer fix reverted
+(2 fail), a mission added with an unwired metric (1 fail).
+
 ## [1.24.2] — 2026-11-13
 
 ### Fixed — both headless tests had been red since 2026-11-05, and could not say why

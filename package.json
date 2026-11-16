@@ -1,6 +1,6 @@
 {
   "name": "neon-engine",
-  "version": "1.24.2",
+  "version": "1.24.3",
   "description": "A small, dependency-light WebGL engine for open-world browser shooters. Zero asset files: the city, textures and sound are all generated in code.",
   "author": "Dr. Sohil Momin",
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -20,8 +20,9 @@
   ],
   "scripts": {
     "serve": "python3 -m http.server 8080",
-    "test": "node tests/pages.cjs && node tests/smoke.cjs && node tests/world.cjs",
+    "test": "node tests/pages.cjs && node tests/campaign.cjs && node tests/smoke.cjs && node tests/world.cjs",
     "test:pages": "node tests/pages.cjs",
+    "test:campaign": "node tests/campaign.cjs",
     "test:smoke": "node tests/smoke.cjs",
     "test:world": "node tests/world.cjs"
   },

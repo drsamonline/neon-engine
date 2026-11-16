@@ -21,23 +21,42 @@ export const MISSIONS = [
   { id: 'm16', title: 'LEGEND', brief: 'Survive to ten minutes and clear 100.', metric: 'kills', goal: 100, reward: 3000 },
 ];
 
+// The metrics a mission can be measured by that the campaign advances ITSELF:
+// `update(dt)` accrues them, so nothing outside has to feed them. Every other
+// metric in MISSIONS must be fed by a `campaign.bump('<metric>')` in the engine,
+// and `tests/campaign.cjs` fails if one is not — see CHANGELOG 1.24.3.
+export const TIME_METRICS = ['seconds'];
+export const MISSION_METRICS = [...new Set(MISSIONS.map((m) => m.metric))];
+
 export class Campaign {
   constructor(hooks = {}) {
     this.hud = hooks.hud; this.audio = hooks.audio; this.music = hooks.music;
     this.onReward = hooks.onReward || null;
+    // The pause between one mission clearing and the next one's banner. 2.2 s
+    // in play; tests set it to 0 so sixteen missions do not cost 35 seconds.
+    this.stepDelay = hooks.stepDelay === undefined ? 2200 : hooks.stepDelay;
     this.index = 0;
     this.progress = 0;
     this.active = false;
     this.done = false;
     this.timer = 0;
+    this._pending = null;
   }
 
   get current() { return MISSIONS[this.index] || null; }
 
   start(index = 0) {
+    this._clearPending();
     this.index = Math.max(0, Math.min(MISSIONS.length - 1, index));
     this.active = true; this.done = false;
     this._enter();
+  }
+
+  /* A pending hand-off belongs to the run that scheduled it. Restarting the
+     campaign inside the 2.2 s gap used to let the stale timer fire and reset the
+     NEW mission's progress to zero, silently. */
+  _clearPending() {
+    if (this._pending !== null) { clearTimeout(this._pending); this._pending = null; }
   }
 
   _enter() {
@@ -76,11 +95,16 @@ export class Campaign {
     if (this.hud) this.hud.banner('MISSION COMPLETE', `+${m.reward} coins`);
     if (this.music) this.music.sting('win');
     this.index++;
-    if (this.index >= MISSIONS.length) this._finish();
-    else setTimeout(() => { if (this.active) this._enter(); }, 2200);
+    if (this.index >= MISSIONS.length) { this._finish(); return; }
+    this._clearPending();
+    this._pending = setTimeout(() => {
+      this._pending = null;
+      if (this.active && !this.done) this._enter();
+    }, this.stepDelay);
   }
 
   _finish() {
+    this._clearPending();
     this.done = true; this.active = false;
     if (this.hud) { this.hud.banner('CAMPAIGN COMPLETE', 'you cleared every mission'); this.hud.setObjective('CAMPAIGN COMPLETE', 'free roam'); }
     if (this.music) this.music.sting('win');

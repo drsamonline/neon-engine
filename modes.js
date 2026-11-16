@@ -109,6 +109,7 @@ export function installModes(GameBase) {
         this.hud.banner('EXTRACTED', '+' + bonus + '\u25c8');
         if (this.music) this.music.sting('win');
         e.got = 0; e.zone = null; e.need += 1;
+        if (this.campaign) this.campaign.bump('extractions');
         this.hud.notify('Next run needs ' + e.need + ' caches');
       }
       this.hud.setObjective('EXTRACTION', `LZ is ${Math.round(d)}m away`);
