@@ -25,8 +25,11 @@ What is done, what is planned, and what is deliberately out of scope.
 - Gamepad support with haptics
 - Weapon attachments (optic / muzzle / magazine / grip)
 - Positional convolution reverb (indoor vs street)
-- A sixteen-mission scripted campaign (`?campaign=1`) — every mission's metric is
+- An eighteen-mission scripted campaign (`?campaign=1`) — every mission's metric is
   wired and asserted, so none of them can dead-end (`tests/campaign.cjs`)
+- **Multi-phase set-piece missions** — missions 17 and 18 ("THE BREACH", "LAST LIGHT")
+  are cleared in ordered phases, and a later phase's metric cannot advance an earlier
+  one (`campaign.js` → `phasesOf`, `tests/campaign.cjs`)
 - Two-floor building interiors in the city: a slab at 3.3 m cut by a stairwell, an
   inside staircase within the controller's step limit, and loot that can only be
   reached from upstairs (`tests/world.cjs` asserts every one of those)
@@ -34,7 +37,8 @@ What is done, what is planned, and what is deliberately out of scope.
 
 ## Planned
 
-- A longer campaign with authored set-pieces
+- More set-pieces, and authored beats inside a mission (a scripted event between phases,
+  not only a counter) — the phase engine is the seam they can now hang from
 
 ## Considered and rejected
 

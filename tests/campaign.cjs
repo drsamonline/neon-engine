@@ -3,7 +3,7 @@
 // No browser, no network, no game boot — a second and a half.
 //
 // Why it exists. The campaign ships enabled by default (`example/game.js` →
-// `campaign: true`) and it is sixteen missions long. Mission 12, "GET OUT", is
+// `campaign: true`) and it is eighteen missions long. Mission 12, "GET OUT", is
 // measured by `extractions` — and nothing in the engine ever fed that metric.
 // `modes.js` completed an extraction, paid the bonus and printed "EXTRACTED",
 // and the campaign never heard about it, so the chain dead-ended at 12 of 16
@@ -15,8 +15,11 @@
 //     itself (TIME_METRICS) or fed by a `campaign.bump('<metric>')` in a module
 //     the engine actually loads — checked by reading the source, so adding a
 //     mission with an unwired metric fails here instead of in someone's game;
-//   * all sixteen missions can be walked to the end, in order, for the right
+//   * all eighteen missions can be walked to the end, in order, for the right
 //     reward, and the campaign then reports itself complete;
+//   * a SET-PIECE mission (1.25.0) is cleared phase by phase, in order: a later
+//     phase's metric cannot advance an earlier one, the first phase does not
+//     complete the mission, and surplus carries only within one metric;
 //   * a metric that is not the current mission's does nothing;
 //   * restarting inside the hand-off gap does not silently reset the new run.
 //
@@ -38,12 +41,21 @@ const flush = (ms = 5) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
   const mod = await import(path.join(ROOT, 'campaign.js'));
-  const { MISSIONS, TIME_METRICS, MISSION_METRICS, Campaign } = mod;
+  const { MISSIONS, TIME_METRICS, MISSION_METRICS, phasesOf, Campaign } = mod;
 
   // ---- 1. the wiring guard: a mission's metric must be reachable ----------
   ok('campaign.js exports its missions', Array.isArray(MISSIONS) && MISSIONS.length > 0);
   ok('the campaign is longer than the eight missions the README used to claim',
     MISSIONS.length >= 12, `MISSIONS.length is ${MISSIONS.length}`);
+  ok('phasesOf() reads a plain mission as exactly one phase',
+    phasesOf(MISSIONS[0]).length === 1 && phasesOf(MISSIONS[0])[0].metric === MISSIONS[0].metric,
+    'a plain mission must not need a `phases` array to be readable');
+  const setPieces = MISSIONS.filter((m) => Array.isArray(m.phases) && m.phases.length > 1);
+  ok('the chain ships authored set-pieces (the roadmap\'s open item)', setPieces.length >= 2,
+    `${setPieces.length} set-piece mission(s) — the roadmap named "a longer campaign with authored set-pieces"`);
+  ok('every set-piece phase declares a metric, a goal and a brief',
+    setPieces.every((m) => m.phases.every((p) => p.metric && p.goal > 0 && p.brief)),
+    'a phase with no metric can never complete, and one with no goal would complete instantly');
 
   // Only modules the engine loads can feed a metric. gamebase.js is the entry
   // module and imports both of these (asserted below), so a bump in either is
@@ -75,7 +87,7 @@ async function main() {
     read('modes.js').includes("campaign.bump('extractions')"),
     'modes.js completes an extraction without telling the campaign');
 
-  // ---- 2. all sixteen missions walk to the end ---------------------------
+  // ---- 2. all eighteen missions walk to the end, phase by phase ----------
   const rewards = [];
   const campaign = new Campaign({ stepDelay: 0, onReward: (r) => rewards.push(r) });
   ok('the campaign is not running before start()', campaign.active === false);
@@ -94,10 +106,17 @@ async function main() {
     const m = MISSIONS[i];
     ok(`mission ${i + 1} "${m.title}" is the one the campaign is on`, campaign.current && campaign.current.id === m.id,
       `the campaign is on ${campaign.current && campaign.current.id}`);
-    // The engine checks the goal in update(), not in bump(), so a frame is what
-    // turns a reached goal into a completed mission — exactly as in play.
-    if (timeMetrics.has(m.metric)) campaign.update(m.goal);
-    else { campaign.bump(m.metric, m.goal); campaign.update(0); }
+    // A set-piece is cleared one phase at a time; a plain mission is one phase.
+    const phases = phasesOf(m);
+    for (let pi = 0; pi < phases.length; pi++) {
+      const p = phases[pi];
+      ok(`mission ${i + 1} "${m.title}" is on phase ${pi + 1}/${phases.length}`,
+        campaign.phase === pi, `phase is ${campaign.phase}`);
+      // The engine checks the goal in update(), not in bump(), so a frame is what
+      // turns a reached goal into a completed mission — exactly as in play.
+      if (timeMetrics.has(p.metric)) campaign.update(p.goal);
+      else { campaign.bump(p.metric, p.goal); campaign.update(0); }
+    }
     expectedRewards.push(m.reward);
     // The mission cleared and the hand-off is scheduled; let it run.
     if (i < MISSIONS.length - 1) await flush();
@@ -140,6 +159,89 @@ async function main() {
   ok('a restart clears the pending hand-off', c3._pending === null);
   ok('a stale hand-off does not reset the new run\'s progress', c3.progress === 3,
     `progress is ${c3.progress} — the old timer fired into the new run`);
+
+  // ---- 5. a set-piece is cleared phase by phase, in order ----------------
+  // Missions 17 and 18 are the shipped set-pieces. They are found by shape, not
+  // by index, so re-ordering the chain cannot make this section test nothing.
+  const spIndex = MISSIONS.findIndex((m) => Array.isArray(m.phases) && m.phases.length > 1);
+  ok('the chain has a set-piece to test', spIndex >= 0);
+  const sp = MISSIONS[spIndex];
+  const spPhases = phasesOf(sp);
+
+  const lines = [];
+  const hud = {
+    banner(t, s) { lines.push('BANNER ' + t + ' — ' + s); },
+    setObjective(t, s) { lines.push('OBJ ' + t + ' — ' + s); },
+  };
+  const c4 = new Campaign({ stepDelay: 0, hud });
+  const c4rewards = [];
+  c4.onReward = (r) => c4rewards.push(r);
+  c4.start(spIndex);
+  ok('starting a set-piece puts the player on its first phase',
+    c4.current.id === sp.id && c4.phase === 0);
+  ok('the objective line names the phase',
+    lines.some((l) => l.startsWith('OBJ ') && l.includes(`PHASE 1/${spPhases.length}`)),
+    'no objective carried "PHASE 1/' + spPhases.length + '"');
+
+  // A metric belonging to a LATER phase must not move the current one.
+  const later = spPhases.slice(1).map((p) => p.metric).filter((m) => m !== spPhases[0].metric);
+  if (later.length) {
+    c4.bump(later[0], 99);
+    ok(`bumping "${later[0]}" (a later phase) does not advance phase 1 of "${sp.title}"`,
+      c4.progress === 0, `progress became ${c4.progress}`);
+  }
+
+  // Clearing phase 1 must not complete the mission, and must not pay its reward.
+  const p1 = spPhases[0];
+  if (timeMetrics.has(p1.metric)) c4.update(p1.goal); else { c4.bump(p1.metric, p1.goal); c4.update(0); }
+  ok('clearing the first phase does not complete a set-piece',
+    c4.current && c4.current.id === sp.id && c4.index === spIndex,
+    `the campaign moved to index ${c4.index}`);
+  ok('clearing the first phase pays nothing yet', c4rewards.length === 0,
+    `reward(s) paid: ${JSON.stringify(c4rewards)}`);
+  ok('clearing the first phase advances to phase 2', c4.phase === 1, `phase is ${c4.phase}`);
+  ok('phase 2 starts from zero when it is measured by a different metric',
+    spPhases[1].metric === p1.metric ? true : c4.progress === 0,
+    `progress carried over as ${c4.progress} into a phase that does not count it`);
+
+  // Walk the rest of the set-piece to the end; the reward is paid exactly once.
+  for (let pi = 1; pi < spPhases.length; pi++) {
+    const p = spPhases[pi];
+    if (timeMetrics.has(p.metric)) c4.update(p.goal); else { c4.bump(p.metric, p.goal); c4.update(0); }
+    await flush();
+  }
+  ok('the set-piece pays its reward exactly once when its last phase clears',
+    JSON.stringify(c4rewards) === JSON.stringify([sp.reward]), `got ${JSON.stringify(c4rewards)}`);
+
+  // Surplus carries only within one metric. Two synthetic chains, so the rule is
+  // tested rather than assumed from whatever the shipped content happens to be.
+  const sameMetric = new Campaign({
+    stepDelay: 0,
+    missions: [{ id: 'x', title: 'X', brief: 'x', reward: 1, phases: [
+      { brief: 'a', metric: 'kills', goal: 10 },
+      { brief: 'b', metric: 'kills', goal: 10 },
+    ] }],
+  });
+  sameMetric.start();
+  sameMetric.bump('kills', 12);
+  sameMetric.update(0);
+  ok('surplus carries into a next phase measured by the same metric',
+    sameMetric.phase === 1 && sameMetric.progress === 2,
+    `phase ${sameMetric.phase}, progress ${sameMetric.progress} (expected 1 and 2)`);
+
+  const crossMetric = new Campaign({
+    stepDelay: 0,
+    missions: [{ id: 'y', title: 'Y', brief: 'y', reward: 1, phases: [
+      { brief: 'a', metric: 'kills', goal: 10 },
+      { brief: 'b', metric: 'headshots', goal: 5 },
+    ] }],
+  });
+  crossMetric.start();
+  crossMetric.bump('kills', 12);
+  crossMetric.update(0);
+  ok('surplus does NOT carry into a phase measured by another metric',
+    crossMetric.phase === 1 && crossMetric.progress === 0,
+    `phase ${crossMetric.phase}, progress ${crossMetric.progress} (expected 1 and 0)`);
 
   // ---- report -----------------------------------------------------------
   if (failures.length) {

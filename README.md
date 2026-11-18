@@ -85,7 +85,7 @@ sound are all generated in code, so a whole game is about 1.4 MB and works offli
 | `ally.js` | a companion who follows you and fights |
 | `base.js` | safe-house installations, including an auto turret |
 | `compound.js` | the walled safe-house compound, with a single gate |
-| `campaign.js` | the 16-mission scripted chain |
+| `campaign.js` | the 18-mission scripted chain, two of them multi-phase set-pieces |
 | `loot.js` | drops: ammo, health, armour, coins, magnets, upgrade tokens |
 | `leveling.js` | XP, perks, sets, attachments, mastery, prestige, save slots |
 | `store.js` | wandering merchant with a shop UI and daily rotating stock |

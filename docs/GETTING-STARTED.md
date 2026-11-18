@@ -87,7 +87,7 @@ const game = new GameBase(canvas, {
   vehicles: true,          // drivable cars (F to get in). Default on.
   ally: true,              // a companion who follows you and shoots
   allyName: 'Rook',
-  campaign: true,          // the 16-mission scripted chain
+  campaign: true,          // the 18-mission scripted chain
   mode: 'bossrush',        // 'arena' | 'bossrush' | 'defence' | 'extraction'
 });
 ```

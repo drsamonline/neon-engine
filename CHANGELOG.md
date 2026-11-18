@@ -3,6 +3,35 @@
 All notable changes to the Neon Engine and its games.
 Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://semver.org/).
 
+## [1.25.0] — 2026-11-18
+
+### Added — set-piece missions: a mission can be a sequence, not only a counter
+
+The roadmap's one open item was *"a longer campaign with authored set-pieces"*, and the
+blocker was the shape of a mission: one metric and one goal, so every scripted beat had
+to be flattened into a single number. Missions 17 and 18 are the first two that are not.
+
+- `phasesOf(mission)` reads **any** mission as an ordered list of phases; a plain
+  mission is one implicit phase, so there is one code path, not two.
+- `Campaign` gains `phase` and `currentPhase`. `bump()` and `update(dt)` measure the
+  **current** phase, so a later phase's metric cannot advance an earlier one — a
+  "breach, then destroy the core, then leave" set-piece cannot be satisfied by kills.
+- A phase must be cleared before the next counts. **Surplus carries into the next phase
+  only when that phase is measured by the same metric**; otherwise those events belong
+  to the phase just closed, and counting them twice would let "kill 10, then land 5
+  headshots" be met by ten headshot kills.
+- The HUD label carries `· PHASE n/m` and a banner marks each phase, so a set-piece
+  never looks stuck on an objective the player already met.
+- `new Campaign({ missions })` overrides the chain — the hook that lets a test exercise
+  a shape the shipped content does not contain.
+- **THE BREACH** (17): 15 kills → destroy the core → extract. **LAST LIGHT** (18):
+  hold two defence waves → put down the champion → survive a minute. Every phase is
+  measured by a metric the engine already feeds, so nothing new had to be wired.
+- `tests/campaign.cjs` grew from 43 to **81** assertions: the walk is phase-aware, and
+  the new guard covers phase isolation, no early completion, no early reward, the
+  carried-vs-reset surplus rule, and the phase in the objective line. Five mutations
+  each turn it red.
+
 ## [1.24.3] — 2026-11-16
 
 ### Fixed — the campaign dead-ended at mission 12 of 16, silently

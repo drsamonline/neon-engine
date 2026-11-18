@@ -53,7 +53,7 @@ config table — most games are a config object and a `GameBase`.
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `mode` | `undefined` | `'arena'`, `'bossrush'`, `'defence'` or `'extraction'`. |
-| `campaign` | `false` | Run the 16-mission scripted chain. |
+| `campaign` | `false` | Run the 18-mission scripted chain. |
 | `ally` | `false` | Spawn a companion who follows and fights. |
 | `allyName` | `'Rook'` | The companion's name. |
 | `vehicles` | `undefined` | Set `false` to disable drivable cars. |
@@ -195,9 +195,16 @@ they are stopped by a wall you can see and circle it instead.
 Installs: `bed` (double regen) · `stash` · `turret` · `forge` (scrap over time).
 
 ### `campaign.js`
-`MISSIONS` (16) · `new Campaign(hooks)`
+`MISSIONS` (18) · `phasesOf(mission)` · `new Campaign(hooks)`
 
-`start(index)` · `bump(metric, n)` · `update(dt)` · `current` · `index` · `done`
+`start(index)` · `bump(metric, n)` · `update(dt)` · `current` · `currentPhase` ·
+`index` · `phase` · `done`
+
+A mission is one metric and one goal, **or** a `phases` array — an ordered list of
+`{ brief, metric, goal }` — for an authored set-piece (missions 17 and 18). A phase
+must be cleared before the next one counts; surplus carries into the next phase only
+when it is measured by the same metric. `hooks.missions` overrides the chain, which is
+how a test exercises a shape the shipped content does not contain.
 
 Metrics: `kills` · `stashes` · `headshots` · `upgrades` · `bosses` · `seconds` ·
 `hordeKills` · `cores` · `crafts` · `extractions` · `defences` · `arrests`
