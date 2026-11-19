@@ -2,6 +2,9 @@
 import * as THREE from 'three';
 import { clamp } from './core.js';
 
+/**
+ * The throwable table: grenade and the rest, with fuse, radius and damage.
+ */
 export const THROWABLES = {
   grenade: {
     id: 'grenade', name: 'Frag Grenade', radius: 8, damage: 150, fuse: 2.2,
@@ -16,6 +19,9 @@ export const THROWABLES = {
 
 const G = new THREE.SphereGeometry(0.16, 8, 6);
 
+/**
+ * Throwing, the arc, the fuse and the blast.
+ */
 export class Throwables {
   constructor(scene, world, player, audio, particles) {
     this.scene = scene; this.world = world; this.player = player;

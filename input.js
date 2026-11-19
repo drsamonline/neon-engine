@@ -2,6 +2,9 @@
 /* Every rebindable action, in one place. The settings panel is generated from
    this list, so an action cannot exist without being rebindable — and cannot be
    rebindable without appearing in the menu. */
+/**
+ * Every bindable action, with the label and group the settings screen shows.
+ */
 export const ACTIONS = [
   { id: 'forward', label: 'Move forward', group: 'Movement' },
   { id: 'back', label: 'Move back', group: 'Movement' },
@@ -48,11 +51,17 @@ export const ACTIONS = [
 /* a readable name for a KeyboardEvent.code */
 /* A game may relabel an action for its own world — the zombie game should not
    offer to "arrest" anything. */
+/**
+ * The label for an action, honouring the player's overrides.
+ */
 export function actionLabel(action, overrides) {
   if (overrides && overrides[action.id]) return overrides[action.id];
   return action.label;
 }
 
+/**
+ * A readable name for a KeyboardEvent.code.
+ */
 export function keyLabel(code) {
   if (!code) return '—';
   return code.replace(/^Key/, '').replace(/^Digit/, '').replace(/^Arrow/, 'Arrow ')
@@ -60,6 +69,9 @@ export function keyLabel(code) {
     .replace('Shift', 'Shift').replace('Escape', 'Esc').replace('Space', 'Space');
 }
 
+/**
+ * Keyboard, mouse and pointer-lock state, plus the bindings the player has changed.
+ */
 export class Input {
   constructor(canvas, opts = {}) {
     this.canvas = canvas;

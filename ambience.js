@@ -6,6 +6,9 @@ const CHUNK = 96;
 const roadCoord = (v) => Math.round((v - 9) / CHUNK) * CHUNK + 9;
 
 /* ---------------- distant skyline silhouette ---------------- */
+/**
+ * The distant skyline ring that closes the horizon.
+ */
 export class Skyline {
   constructor(scene) {
     const geos = [];
@@ -37,6 +40,9 @@ export class Skyline {
 }
 
 /* ---------------- traffic ---------------- */
+/**
+ * Cars that drive the ring road and light the street as they pass.
+ */
 export class Traffic {
   constructor(scene, count = 5) {
     this.cars = [];
@@ -92,6 +98,9 @@ export class Traffic {
 }
 
 /* ---------------- puddles (visible when it rains) ---------------- */
+/**
+ * Reflective puddles scattered over the ground plane.
+ */
 export class Puddles {
   constructor(scene, count = 12) {
     this.items = [];
@@ -129,6 +138,9 @@ export class Puddles {
 }
 
 /* expanding rings where rain hits standing water */
+/**
+ * Expanding rings where something landed in water.
+ */
 export class Ripples {
   constructor(scene, max = 40) {
     this.scene = scene; this.max = max; this.items = [];
@@ -166,6 +178,9 @@ export class Ripples {
 }
 
 /* snow that settles: a slow white build-up on the ground in snowy biomes */
+/**
+ * Snow patches that accumulate on flat surfaces.
+ */
 export class SnowCover {
   constructor(scene) {
     this.scene = scene;

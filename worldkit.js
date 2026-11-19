@@ -3,11 +3,26 @@
 // share them without a circular import.
 import * as THREE from 'three';
 
+/**
+ * World units per streamed chunk.
+ */
 export const CHUNK = 96;      // world units per chunk
+/**
+ * How many chunks load around the player in each direction.
+ */
 export const LOAD_R = 2;      // chunks loaded around the player (5 x 5)
+/**
+ * Window tiling density on the building facades.
+ */
 export const TILE = 7;        // window tiling density
+/**
+ * Shared wind phase: written by the weather, read by anything that sways.
+ */
 export const WIND = { value: 0 };
 
+/**
+ * Shared unit geometries, cloned and baked rather than rebuilt per prop.
+ */
 export const G = {
   box: new THREE.BoxGeometry(1, 1, 1),
   cyl: new THREE.CylinderGeometry(0.5, 0.5, 1, 8),
@@ -23,6 +38,9 @@ const _q = new THREE.Quaternion();
 const _e = new THREE.Euler();
 const _v = new THREE.Vector3();
 
+/**
+ * Clone a geometry, transform it, and return it ready to merge.
+ */
 export function bake(base, x, y, z, sx, sy, sz, rx, ry, rz, uvScale) {
   const g = base.clone();
   _e.set(rx, ry, rz); _q.setFromEuler(_e);
@@ -37,6 +55,9 @@ export function bake(base, x, y, z, sx, sy, sz, rx, ry, rz, uvScale) {
   return g;
 }
 
+/**
+ * Give every vertex of a geometry the same colour attribute.
+ */
 export function addColor(g, hex) {
   const c = new THREE.Color(hex);
   const n = g.attributes.position.count;

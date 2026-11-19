@@ -110,6 +110,9 @@ function sway(mat, amount) {
   mat.needsUpdate = true;
 }
 
+/**
+ * The streamed world: chunks, collision queries, props and the biome pass.
+ */
 export class World {
   constructor(scene, opts = {}) {
     this.scene = scene;

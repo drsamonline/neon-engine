@@ -2,6 +2,9 @@
 import * as THREE from 'three';
 import { clamp, damp } from './core.js';
 
+/**
+ * The four loot rarities, with the colour and label each one carries.
+ */
 export const RARITY = {
   common:    { c: '#9aa6b8', name: 'Common' },
   rare:      { c: '#4aa8ff', name: 'Rare' },
@@ -10,6 +13,9 @@ export const RARITY = {
 };
 
 /* selectable view-model colour themes (Settings → Weapon colour) */
+/**
+ * Weapon skin themes: the palette each one applies to a view model.
+ */
 export const THEMES = {
   neon:     { name: 'Neon',     accent: null },
   military: { name: 'Military', accent: '#7d9a4e' },
@@ -19,6 +25,9 @@ export const THEMES = {
   violet:   { name: 'Violet',   accent: '#a86aff' },
 };
 
+/**
+ * Every weapon definition: damage, rpm, magazine, spread, pellets, range, reload, auto.
+ */
 export const WEAPONS = {
   knife: {
     id: 'knife', name: 'Combat Knife', kind: 'melee', damage: 70, rpm: 150, mag: Infinity,
@@ -103,6 +112,9 @@ export const WEAPONS = {
 };
 
 /* attachment slots — buy once per weapon, then swap freely */
+/**
+ * The attachment slots a weapon can carry.
+ */
 export const ATTACH_SLOTS = [
   { key: 'optic', name: 'Optic' },
   { key: 'muzzle', name: 'Muzzle' },
@@ -110,6 +122,9 @@ export const ATTACH_SLOTS = [
   { key: 'grip', name: 'Grip' },
 ];
 
+/**
+ * Every attachment grouped by slot, with its price and the stat modifier it applies.
+ */
 export const ATTACHMENTS = {
   optic: [
     { id: 'none', name: 'Iron Sights', price: 0, mod: {} },
@@ -149,6 +164,9 @@ function attachmentMods(equipped) {
 }
 
 /* per-weapon upgrade tracks — how a single gun keeps growing with you */
+/**
+ * The upgrade tracks a weapon can be levelled along.
+ */
 export const WEAPON_TRACKS = [
   { key: 'damage', name: 'Damage',   max: 5, step: '+8% damage' },
   { key: 'mag',    name: 'Magazine', max: 5, step: '+20% mag size' },
@@ -157,6 +175,9 @@ export const WEAPON_TRACKS = [
 ];
 
 /* apply a weapon's upgrade levels to its base definition */
+/**
+ * Effective stats for one weapon given its upgrade levels, attachments and mastery bonus.
+ */
 export function weaponStats(def, up, reloadBonus = 0, att = null, masteryBonus = 0) {
   const u = up || {};
   const dl = u.damage || 0, ml = u.mag || 0, rl = u.reload || 0, sl = u.spread || 0;
@@ -183,6 +204,9 @@ export function weaponStats(def, up, reloadBonus = 0, att = null, masteryBonus =
 }
 
 /* human-readable "before → after" line for an upgrade row */
+/**
+ * A human-readable before/after string for one upgrade track.
+ */
 export function statDelta(track, a, b) {
   if (track === 'damage') return `${Math.round(a.damage)} \u2192 ${Math.round(b.damage)} dmg`;
   if (track === 'mag') return `${a.mag} \u2192 ${b.mag} rounds`;
@@ -190,6 +214,9 @@ export function statDelta(track, a, b) {
   return `${(a.spread * 1000).toFixed(0)} \u2192 ${(b.spread * 1000).toFixed(0)} spread`;
 }
 
+/**
+ * The cycle order for the weapon wheel and the number keys.
+ */
 export const WEAPON_ORDER = ['knife', 'pistol', 'revolver', 'smg', 'shotgun', 'crossbow', 'rifle', 'sniper', 'lmg', 'launcher', 'taser', 'flame', 'minigun'];
 
 /* gloved hands, added to every view model so the weapon is held, not floating */
@@ -297,6 +324,9 @@ function buildModel(def, theme) {
   return { g, muzzle, hands, flashPos: new THREE.Vector3(0, 0.03, -L - 0.5) };
 }
 
+/**
+ * The player's weapons: what is owned, what is equipped, the view models, firing and reloading.
+ */
 export class Arsenal {
   constructor(camera, scene, player, audio) {
     this.camera = camera; this.scene = scene; this.player = player; this.audio = audio;

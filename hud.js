@@ -51,6 +51,9 @@ function shape(ctx, s, x, y, n) {
   } else { ctx.beginPath(); ctx.arc(x, y, n, 0, 7); ctx.fill(); }
 }
 
+/**
+ * The heads-up display: health, ammo, compass, prompts and notifications.
+ */
 export class HUD {
   constructor() {
     this._build();

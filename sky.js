@@ -45,6 +45,9 @@ void main() {
   gl_FragColor = vec4(col, 1.0);
 }`;
 
+/**
+ * The sky dome, sun, stars and the time-of-day tint.
+ */
 export class Sky {
   constructor(scene) {
     const geo = new THREE.SphereGeometry(1, 32, 20);

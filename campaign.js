@@ -7,6 +7,9 @@
 // then the third — so a scripted beat can ask for more than one thing without the
 // engine growing a second kind of mission. See `phasesOf()`.
 
+/**
+ * The mission table: title, brief, metric, goal, reward.
+ */
 export const MISSIONS = [
   { id: 'm1', title: 'FIRST CONTACT', brief: 'Put down 8 of the infected.', metric: 'kills', goal: 8, reward: 200 },
   { id: 'm2', title: 'SUPPLY RUN', brief: 'Crack open 2 hidden caches.', metric: 'stashes', goal: 2, reward: 300 },
@@ -48,6 +51,9 @@ export const MISSIONS = [
 
 // A mission's ordered phases. A plain mission is one implicit phase, so every
 // caller reads the same shape and there is no second code path to forget.
+/**
+ * The phases of a mission, or a single phase built from its own fields.
+ */
 export function phasesOf(m) {
   if (m && Array.isArray(m.phases) && m.phases.length) return m.phases;
   return [{ brief: m.brief, metric: m.metric, goal: m.goal }];
@@ -59,9 +65,18 @@ export function phasesOf(m) {
 // and `tests/campaign.cjs` fails if one is not — see CHANGELOG 1.24.3.
 // A set-piece's phase metrics are in here too, so an unwired phase fails the
 // same guard a plain mission does.
+/**
+ * Metrics measured in seconds rather than counted.
+ */
 export const TIME_METRICS = ['seconds'];
+/**
+ * Every metric any mission phase asks for.
+ */
 export const MISSION_METRICS = [...new Set(MISSIONS.flatMap((m) => phasesOf(m).map((p) => p.metric)))];
 
+/**
+ * Mission progress: what is done, what is active, what pays out.
+ */
 export class Campaign {
   constructor(hooks = {}) {
     this.hud = hooks.hud; this.audio = hooks.audio; this.music = hooks.music;

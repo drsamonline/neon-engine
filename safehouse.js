@@ -4,6 +4,9 @@ import { WEAPONS, RARITY, WEAPON_TRACKS, weaponStats, statDelta } from './weapon
 import { ARMOUR, ARMOUR_TRACK, PERKS } from './leveling.js';
 import { INSTALLS } from './base.js';
 
+/**
+ * The safe zone: the barrier, the interior, and what it protects.
+ */
 export class SafeHouse {
   constructor(scene, audio, opts = {}) {
     this.scene = scene;

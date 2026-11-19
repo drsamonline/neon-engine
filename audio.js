@@ -21,6 +21,9 @@ const VOICES = {
   _default:  { spot: { f: 420, d: 0.16, w: 'sawtooth', g: 0.11, to: 640 }, death: { f: 360, d: 0.35, w: 'sawtooth', g: 0.11, to: 150 }, surrender: { f: 380, d: 0.4, w: 'triangle', g: 0.1, to: 220 } },
 };
 
+/**
+ * Procedural sound: weapons, enemies, UI, weather and ambience. No audio files.
+ */
 export class AudioManager {
   constructor() {
     this.ctx = null;

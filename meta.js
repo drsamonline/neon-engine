@@ -4,6 +4,9 @@
 
 const STORE = 'ow-meta';
 
+/**
+ * The achievement table: id, name, description and condition.
+ */
 export const ACHIEVEMENTS = [
   { id: 'first_blood', name: 'First Blood', desc: 'Kill your first enemy' },
   { id: 'kill_100', name: 'Exterminator', desc: 'Kill 100 enemies', goal: 100 },
@@ -55,6 +58,9 @@ function rngFrom(seed) {
   return () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
 }
 
+/**
+ * Achievements and statistics that persist across runs.
+ */
 export class Meta {
   constructor(key = STORE) {
     this.key = key;

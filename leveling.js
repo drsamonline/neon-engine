@@ -2,6 +2,9 @@
 import { WEAPONS, WEAPON_ORDER, WEAPON_TRACKS, weaponStats, ATTACHMENTS } from './weapons.js';
 
 // passive perks, bought with skill points (they compete with raw stat upgrades)
+/**
+ * The perk table: id, description, cost in points, maximum ranks.
+ */
 export const PERKS = [
   { id: 'lifesteal', name: 'Vampirism', desc: '+5 HP per kill', cost: 2, max: 3 },
   { id: 'thorns', name: 'Retribution', desc: 'reflect 18% of melee damage', cost: 2, max: 3 },
@@ -12,9 +15,15 @@ export const PERKS = [
 ];
 
 // armour plating: an upgrade track that stacks on top of your vest
+/**
+ * How the armour upgrade track scales with rank.
+ */
 export const ARMOUR_TRACK = { max: 6, perArmor: 12, perAbsorb: 0.02, base: 180, growth: 1.42 };
 
 // armour tiers: max armour and the share of damage it absorbs
+/**
+ * Armour tiers: maximum armour and the share of damage each absorbs.
+ */
 export const ARMOUR = [
   { name: 'No Armour', max: 0, absorb: 0, price: 0 },
   { name: 'Light Vest', max: 60, absorb: 0.4, price: 250 },
@@ -23,6 +32,9 @@ export const ARMOUR = [
 ];
 
 /* scrap recipes — cheap, repeatable, and the reason to pick scrap up */
+/**
+ * What scrap can be spent on at a workbench, and what each one gives.
+ */
 export const RECIPES = [
   { id: 'ammo', name: 'Ammo Crate', scrap: 12, note: '+90 reserve ammo', give: (p) => { p.pendingAmmo = (p.pendingAmmo || 0) + 90; } },
   { id: 'medkit', name: 'Field Medkit', scrap: 25, note: 'instant full heal', give: (p) => { p.pendingHeal = 1; } },
@@ -33,6 +45,9 @@ export const RECIPES = [
 ];
 
 /* gear sets — buy a loadout, wear one at a time. Passive, permanent. */
+/**
+ * Kit bundles sold as a set, each with its own stat modifiers.
+ */
 export const SETS = [
   { id: 'assault', name: 'Assault Kit', price: 1200, note: '+22% reload, +10% weapon damage', mods: { reload: 0.22, damage: 0.10 } },
   { id: 'juggernaut', name: 'Juggernaut Rig', price: 1600, note: '+45 armour, -12% speed', mods: { armor: 45, speed: -0.12 } },
@@ -40,6 +55,9 @@ export const SETS = [
   { id: 'ghost', name: 'Ghost Suit', price: 1400, note: '40% quieter, heat decays faster', mods: { noise: -0.4, heat: 0.35 } },
 ];
 
+/**
+ * Level, xp, coins, unspent points and the perk ranks a player has bought.
+ */
 export class Progression {
   constructor(opts = {}) {
     this.level = 1; this.xp = 0; this.coins = opts.coins ?? 0;

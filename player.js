@@ -2,6 +2,9 @@
 import * as THREE from 'three';
 import { clamp, damp } from './core.js';
 
+/**
+ * The player: movement, camera, collision, health, weapons and interaction.
+ */
 export class Player {
   constructor(camera, world) {
     this.camera = camera;

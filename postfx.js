@@ -122,6 +122,9 @@ void main() {
 }
 `;
 
+/**
+ * A bloom pass over the rendered frame.
+ */
 export class Bloom {
   constructor(renderer, strength = 0.85, threshold = 0.72) {
     this.renderer = renderer;

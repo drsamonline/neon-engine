@@ -8,8 +8,14 @@ const G = {
 };
 
 let DAMAGE_SCALE = 1;
+/**
+ * Scale every enemy's damage globally, for difficulty and for tests.
+ */
 export function setDamageScale(v) { DAMAGE_SCALE = Math.max(0.1, v || 1); }
 
+/**
+ * Every enemy archetype: body, speed, health, damage and behaviour weights.
+ */
 export const ENEMY_TYPES = {
   /* ---- zombies ---- */
   walker: { name: 'Walker', hp: 60, speed: 2.0, dmg: 9, radius: 0.5, scale: 1, color: '#5a7a4a',
@@ -59,6 +65,9 @@ export const ENEMY_TYPES = {
     xp: 320, coins: 220, unlock: 5, boss: true, elite: true },
 };
 
+/**
+ * One enemy: body, animation, state machine and damage handling.
+ */
 export class Enemy {
   constructor(typeId, pos, world, difficulty = 1) {
     const t = ENEMY_TYPES[typeId] || ENEMY_TYPES.walker;
@@ -698,6 +707,9 @@ export class Enemy {
 }
 
 /* ---------------- spawn director ---------------- */
+/**
+ * Spawns and paces enemies around the player, and decides what comes next.
+ */
 export class Director {
   constructor(scene, world, opts = {}) {
     this.scene = scene; this.world = world;

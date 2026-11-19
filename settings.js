@@ -4,12 +4,18 @@ import { ACTIONS, keyLabel, actionLabel } from './input.js';
 /* One control for the whole graphics load. 'performance' is the default so the
    first launch runs smoothly on anything; the individual toggles below still work
    if you want to fine-tune. */
+/**
+ * The graphics presets, from performance to maximum.
+ */
 export const QUALITY_PRESETS = {
   performance: { shadows: false, bloom: false, motionBlur: false, depthOfField: false, filmGrain: false, renderScale: 1, autoQuality: true },
   balanced:    { shadows: true,  bloom: false, motionBlur: true,  depthOfField: false, filmGrain: false, renderScale: 1, autoQuality: true },
   quality:     { shadows: true,  bloom: true,  motionBlur: true,  depthOfField: true,  filmGrain: true,  renderScale: 1, autoQuality: true },
 };
 
+/**
+ * Default settings, and the shape stored settings are validated against.
+ */
 export const DEFAULTS = {
   sensitivity: 1.0,
   fov: 78,
@@ -36,6 +42,9 @@ export const DEFAULTS = {
   binds: null,          // null = the engine defaults
 };
 
+/**
+ * Load, validate, persist and notify on settings changes.
+ */
 export class Settings {
   constructor(key = 'neon-settings') {
     this.key = key;

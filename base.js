@@ -2,6 +2,9 @@
 // safe house UI so the world side (the turret that actually shoots) has a home.
 import * as THREE from 'three';
 
+/**
+ * The upgrades that can be installed in a safe house, and what each one does.
+ */
 export const INSTALLS = [
   { id: 'bed', name: 'Field Bed', price: 600, note: 'heal twice as fast in a safe zone' },
   { id: 'stash', name: 'Ammo Stash', price: 800, note: '+50% reserve ammo on respawn' },
@@ -9,6 +12,9 @@ export const INSTALLS = [
   { id: 'forge', name: 'Scrap Forge', price: 1100, note: 'passively accrues scrap over time' },
 ];
 
+/**
+ * The safe-house base: what is installed, and the effects that follow.
+ */
 export class Base {
   constructor(scene, world, audio) {
     this.scene = scene; this.world = world; this.audio = audio;

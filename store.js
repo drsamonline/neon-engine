@@ -4,6 +4,9 @@ import { WEAPONS, RARITY, WEAPON_TRACKS, weaponStats, statDelta, ATTACH_SLOTS, A
 import { RECIPES, SETS } from './leveling.js';
 import { ARMOUR, ARMOUR_TRACK } from './leveling.js';
 
+/**
+ * The shop: stock, prices, buying and the transaction rules.
+ */
 export class Store {
   constructor(scene, world, audio) {
     this.scene = scene; this.world = world; this.audio = audio;

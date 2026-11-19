@@ -104,4 +104,7 @@ export function buildCompound(world, cx, cz, half, opts = {}) {
   return { group, colliders, door };
 }
 
+/**
+ * Wall height and thickness for the compound.
+ */
 export const COMPOUND = { WALL_H, WALL_T };

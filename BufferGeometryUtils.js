@@ -464,6 +464,9 @@ function interleaveAttributes( attributes ) {
 }
 
 // returns a new, non-interleaved version of the provided attribute
+/**
+ * Split an interleaved attribute into its own buffer.
+ */
 export function deinterleaveAttribute( attribute ) {
 
 	const cons = attribute.data.array.constructor;
@@ -512,6 +515,9 @@ export function deinterleaveAttribute( attribute ) {
 }
 
 // deinterleaves all attributes on the geometry
+/**
+ * De-interleave every attribute of a geometry.
+ */
 export function deinterleaveGeometry( geometry ) {
 
 	const attributes = geometry.attributes;

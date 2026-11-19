@@ -8,6 +8,9 @@ const ACCEL = 15;
 const BRAKE = 26;
 const DRAG = 0.6;
 
+/**
+ * One drivable car: body, wheels, steering and collision.
+ */
 export class Vehicle {
   constructor(scene, world, x, z, ry, color = '#8a3a3a') {
     this.scene = scene; this.world = world;
@@ -98,6 +101,9 @@ export class Vehicle {
   }
 }
 
+/**
+ * The cars placed in the world, and which one the player is in.
+ */
 export class Vehicles {
   constructor(scene, world, player, audio) {
     this.scene = scene; this.world = world; this.player = player; this.audio = audio;

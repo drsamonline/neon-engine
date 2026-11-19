@@ -85,6 +85,9 @@ function jitterColor(hex, rnd, amt = 0.10) {
   return c.setHSL(hsl.h, hsl.s, hsl.l);
 }
 
+/**
+ * The visible body of an enemy: the mesh, the limb rig and its animation.
+ */
 export class EnemyBody {
   constructor(group, t, seed) {
     this.group = group;

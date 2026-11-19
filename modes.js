@@ -1,6 +1,9 @@
 // modes.js — alternate game modes layered on top of the normal loop.
 // Installed onto GameBase.prototype.
 import * as THREE from 'three';
+/**
+ * Install the game-mode methods onto GameBase.prototype.
+ */
 export function installModes(GameBase) {
   Object.assign(GameBase.prototype, {
   /* ---------------- mode dispatch ---------------- */

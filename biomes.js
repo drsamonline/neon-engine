@@ -4,6 +4,9 @@ import * as THREE from 'three';
 import { CHUNK, G } from './worldkit.js';
 import { pick } from './core.js';
 
+/**
+ * Install one generator per biome onto World.prototype, plus the building and interior builders.
+ */
 export function installBiomes(World) {
   Object.assign(World.prototype, {
   /* ---------- detailed building ---------- */

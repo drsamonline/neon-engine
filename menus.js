@@ -4,6 +4,9 @@
 import { ACHIEVEMENTS } from './meta.js';
 import { WEAPONS } from './weapons.js';
 
+/**
+ * Install the menu and screen methods onto GameBase.prototype.
+ */
 export function installMenus(GameBase) {
   Object.assign(GameBase.prototype, {
   /* ---------------- menus ---------------- */

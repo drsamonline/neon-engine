@@ -11,6 +11,9 @@ const MOODS = {
   boss:   { bpm: 148, drums: 1.00, arp: 0.72, bass: 1.00, pad: 0.28, scale: [0, 1, 3, 6, 8] },
 };
 
+/**
+ * Procedural music: the layers, the intensity and the transitions between them.
+ */
 export class Music {
   constructor(audio) {
     this.audio = audio;

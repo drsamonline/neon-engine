@@ -56,6 +56,9 @@ function normaliseEnemy(e) {
 }
 
 /* merge one pack in; returns a small report */
+/**
+ * Validate and register one mod pack. Problems are collected, not thrown.
+ */
 export function registerMod(pack) {
   const id = pack && (pack.id || pack.name);
   if (!id) { problems.push('a pack is missing "id"'); return null; }
@@ -87,6 +90,9 @@ export function registerMod(pack) {
 }
 
 /* apply every registered pack */
+/**
+ * Apply every pack in `window.NEON_MODS` and report what was accepted and rejected.
+ */
 export function applyMods() {
   const list = (typeof window !== 'undefined' && Array.isArray(window.NEON_MODS)) ? window.NEON_MODS : [];
   for (const pack of list) registerMod(pack);
@@ -95,11 +101,20 @@ export function applyMods() {
     pool: applied.flatMap((m) => m.pool || []) };
 }
 
+/**
+ * The packs that were applied.
+ */
 export function listMods() { return applied.slice(); }
+/**
+ * Everything wrong with the packs that were offered.
+ */
 export function modProblems() { return problems.slice(); }
 
 /* optional: discover packs listed in mods/index.json when served over HTTP.
    Purely a convenience — script-tag registration works with no fetch at all. */
+/**
+ * Fetch `mods/index.json` and load the packs it lists. Needs HTTP, not file://.
+ */
 export async function discoverMods(base = './mods/') {
   if (typeof fetch !== 'function') return [];
   try {

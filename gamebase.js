@@ -29,6 +29,9 @@ import { Particles } from './particles.js';
 import { AudioManager } from './audio.js';
 import { clamp, damp, lerp } from './core.js';
 
+/**
+ * The game shell: loop, renderer, scenes, screens and the transition between them.
+ */
 export class GameBase {
   constructor(canvas, cfg = {}) {
     this.canvas = canvas;

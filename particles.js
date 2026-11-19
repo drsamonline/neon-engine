@@ -86,6 +86,9 @@ class System {
   }
 }
 
+/**
+ * Pooled particle effects: impacts, blood, sparks and smoke.
+ */
 export class Particles {
   constructor(scene) {
     this.blood = new System(scene, 400, THREE.NormalBlending);

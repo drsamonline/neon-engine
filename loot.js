@@ -38,6 +38,9 @@ function makeMesh(type) {
   return grp;
 }
 
+/**
+ * Drops, the pickup prompt and what a pickup gives.
+ */
 export class LootSystem {
   constructor(scene, audio) {
     this.scene = scene; this.audio = audio;

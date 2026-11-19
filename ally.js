@@ -3,6 +3,9 @@
 import * as THREE from 'three';
 
 
+/**
+ * A friendly companion that follows and shoots at what you shoot. Steering, not pathfinding.
+ */
 export class Ally {
   constructor(scene, world, player, audio, name = 'Rook') {
     this.scene = scene; this.world = world; this.player = player; this.audio = audio;

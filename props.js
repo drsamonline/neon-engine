@@ -3,6 +3,9 @@
 import * as THREE from 'three';
 import { G, bake, addColor } from './worldkit.js';
 
+/**
+ * Install the prop builders onto World.prototype so `this` stays the chunk builder.
+ */
 export function installProps(World) {
   Object.assign(World.prototype, {
   /* ---------- shared props ---------- */

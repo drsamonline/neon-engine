@@ -1,9 +1,8 @@
 name: docs
 
-# Exported symbols should carry a JSDoc block. This runs in --warn mode: it
-# reports the number and always exits 0, so the coverage can be measured and
-# improved before it becomes a rule. Ported from drsamonline/Hellgate, where the
-# same check runs in hard mode at 52/52.
+# Exported symbols must carry a JSDoc block. Ported from drsamonline/Hellgate.
+# It ran in --warn mode while the backlog was 84 of 86; that backlog is cleared,
+# so the rule is enforced now.
 
 on:
   push:
@@ -28,4 +27,4 @@ jobs:
         with:
           node-version: '20'
       - name: Exported symbols carry a JSDoc block
-        run: node tools/check-docs.mjs --src . --warn
+        run: node tools/check-docs.mjs --src .
