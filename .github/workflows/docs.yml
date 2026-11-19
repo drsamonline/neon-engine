@@ -1,0 +1,31 @@
+name: docs
+
+# Exported symbols should carry a JSDoc block. This runs in --warn mode: it
+# reports the number and always exits 0, so the coverage can be measured and
+# improved before it becomes a rule. Ported from drsamonline/Hellgate, where the
+# same check runs in hard mode at 52/52.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # was @v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # was @v4
+        with:
+          node-version: '20'
+      - name: Exported symbols carry a JSDoc block
+        run: node tools/check-docs.mjs --src . --warn
