@@ -197,14 +197,24 @@ Installs: `bed` (double regen) · `stash` · `turret` · `forge` (scrap over tim
 ### `campaign.js`
 `MISSIONS` (18) · `phasesOf(mission)` · `new Campaign(hooks)`
 
-`start(index)` · `bump(metric, n)` · `update(dt)` · `current` · `currentPhase` ·
-`index` · `phase` · `done`
+`start(index)` · `bump(metric, n)` · `update(dt)` · `reach(x, z)` · `current` ·
+`currentPhase` · `index` · `phase` · `done` · `beat` · `beacon` · `beatPending`
 
 A mission is one metric and one goal, **or** a `phases` array — an ordered list of
 `{ brief, metric, goal }` — for an authored set-piece (missions 17 and 18). A phase
 must be cleared before the next one counts; surplus carries into the next phase only
 when it is measured by the same metric. `hooks.missions` overrides the chain, which is
 how a test exercises a shape the shipped content does not contain.
+
+A phase may carry a **beat** — a scripted moment that opens it, `{ text, at?, radius? }`.
+`{ text }` alone is an *event*: a banner and a sound, and the phase counts as usual.
+With `at: [x, z]` it is *placed*: `beatPending` stays true, `beacon` holds
+`{ x, z, radius }`, `bump()` and `update()` count nothing, and only `reach(x, z)` from
+inside the radius opens the phase — so the beat is a place the player must stand, not a
+counter they can farm from anywhere. The beat fires once per phase entry, including on
+`start()`, and calls `hooks.onBeat({ mission, missionIndex, phase, text, at, radius })`.
+The placed objective is the HUD's existing waypoint (`hud.setWaypoint`), used when the
+HUD has one.
 
 Metrics: `kills` · `stashes` · `headshots` · `upgrades` · `bosses` · `seconds` ·
 `hordeKills` · `cores` · `crafts` · `extractions` · `defences` · `arrests`

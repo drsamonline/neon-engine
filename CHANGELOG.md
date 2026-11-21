@@ -3,6 +3,44 @@
 All notable changes to the Neon Engine and its games.
 Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://semver.org/).
 
+## [1.26.0] — 2026-11-21
+
+### Added — authored beats: a scripted moment between phases, not another counter
+
+1.25.0 made a mission a sequence of phases, and left the roadmap's next line open: *"authored
+beats inside a mission (a scripted event between phases, not only a counter)"*. Every phase
+was still a number, and a number can be farmed from wherever you happen to be standing. A
+phase can now open with a **beat**.
+
+- A phase may carry `beat: { text, at?, radius? }`. It fires **once**, when the phase opens —
+  between phases, where a set-piece's scripted moment belongs — with a `BEAT` banner, the
+  engine's own warning sound, and `hooks.onBeat({ mission, missionIndex, phase, text, at,
+  radius })` so a game can hang its own event on it.
+- **An event beat** (`{ text }`) is a line: it is said, it changes nothing about what counts.
+- **A placed beat** (`{ text, at: [x, z], radius }`) is a place. `beatPending` stays true,
+  `beacon` holds the spot, and `bump()` and `update(dt)` count **nothing** until
+  `Campaign.reach(x, z)` is called from inside the radius — so "destroy the core" cannot be
+  satisfied by a kill from across the map. `gamebase.js` feeds the player's position to it
+  every frame a beat is pending; the campaign does the distance test.
+- The placed objective is the HUD's **existing waypoint**, so the marker the player already
+  reads is the one the beat puts down — no second marker, no second map. `setWaypoint` is
+  optional: a bare HUD (a test stub, another game) is not required to have a map.
+- `reach()` is idempotent and returns true only on the frame that clears the beat, so a
+  caller cannot fire it twice; `_finish()` and `start()` reset the beat state, so a restart
+  replays the beat instead of inheriting a stale one.
+- Content: **THE BREACH** opens its core phase with a placed beat (the chamber is two
+  streets in), and **LAST LIGHT** opens its last minute with an event beat. Both are in the
+  shipped chain, so neither kind can be a feature nothing uses.
+- `tests/campaign.cjs` grew from 81 to **102** assertions, and five mutations were run —
+  removing the bump gate, dropping the beat on phase advance, ignoring the radius, letting
+  `reach()` clear twice, and gating an event beat — **all five went red**.
+
+### Changed
+
+- `docs/API.md`, `README.md` and `ROADMAP.md` say the same thing as the code: the beats
+  item moves from Planned to Shipped, and the next open step is named (a beat that changes
+  what spawns, not only where the player stands).
+
 ## [1.25.0] — 2026-11-18
 
 ### Added — set-piece missions: a mission can be a sequence, not only a counter

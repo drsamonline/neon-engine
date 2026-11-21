@@ -6,6 +6,13 @@
 // is a short ordered list of phases instead — clear the first, then the second,
 // then the third — so a scripted beat can ask for more than one thing without the
 // engine growing a second kind of mission. See `phasesOf()`.
+//
+// A phase may carry an **authored beat** (1.26.0): a scripted moment that happens
+// when the phase opens, not a number to farm. A beat is either an event — a line
+// the mission says out loud — or a *placed* objective, a spot in the world the
+// player has to walk to before the phase's metric starts counting at all. See
+// `_fireBeat()` and `reach()`. A counter alone is not a beat; a beat is a thing
+// that happens to you.
 
 /**
  * The mission table: title, brief, metric, goal, reward.
@@ -34,7 +41,16 @@ export const MISSIONS = [
     brief: 'A set-piece: get in, break the thing, get out.',
     phases: [
       { brief: 'Breach the perimeter — 15 down.', metric: 'kills', goal: 15 },
-      { brief: 'Destroy the core it guards.', metric: 'cores', goal: 1 },
+      {
+        // A PLACED beat: the perimeter is down and the way in is a walk, not a
+        // number. The cores phase does not start counting until the player is
+        // standing where the beat put them.
+        beat: {
+          text: 'The perimeter drops. The core chamber is two streets in — the alarm is already screaming.',
+          at: [0, -70], radius: 8,
+        },
+        brief: 'Get to the core chamber, then destroy the core.', metric: 'cores', goal: 1,
+      },
       { brief: 'Leave with it.', metric: 'extractions', goal: 1 },
     ],
   },
@@ -44,7 +60,12 @@ export const MISSIONS = [
     phases: [
       { brief: 'Hold two defence waves.', metric: 'defences', goal: 2 },
       { brief: 'Put down the champion they send.', metric: 'bosses', goal: 1 },
-      { brief: 'Survive a minute while it settles.', metric: 'seconds', goal: 60 },
+      {
+        // An EVENT beat, with no place: the last minute is meant to be waited
+        // out, and this is the mission saying so before the clock starts.
+        beat: { text: 'The champion is down. Nothing comes now but the dust — stand in it.' },
+        brief: 'Survive a minute while it settles.', metric: 'seconds', goal: 60,
+      },
     ],
   },
 ];
@@ -78,9 +99,17 @@ export const MISSION_METRICS = [...new Set(MISSIONS.flatMap((m) => phasesOf(m).m
  * Mission progress: what is done, what is active, what pays out.
  */
 export class Campaign {
+  /* An authored beat is a scripted moment, so the world has to be told about it
+     as well as the player: `onBeat(beat)` fires once per phase that carries one. */
   constructor(hooks = {}) {
     this.hud = hooks.hud; this.audio = hooks.audio; this.music = hooks.music;
     this.onReward = hooks.onReward || null;
+    this.onBeat = hooks.onBeat || null;
+    // The beat the current phase opened with, and — when it was placed — where it
+    // put the player. `beatPending` is true only while a PLACED beat is unmet.
+    this.beat = null;
+    this.beacon = null;
+    this.beatPending = false;
     // The mission list is overridable so a test can exercise a shape the shipped
     // chain does not happen to contain (e.g. two consecutive phases on one metric).
     this.missions = Array.isArray(hooks.missions) && hooks.missions.length ? hooks.missions : MISSIONS;
@@ -129,16 +158,70 @@ export class Campaign {
     const m = this.current;
     if (!m) { this._finish(); return; }
     this.progress = 0; this.timer = 0; this.phase = 0;
+    this.beatPending = false; this.beacon = null; this.beat = null;
     if (this.hud) {
       this.hud.banner(m.title, m.brief);
       this.hud.setObjective(this._label(m), this.currentPhase.brief);
     }
     if (this.audio) this.audio.warn();
+    this._fireBeat();
+  }
+
+  /* Open the beat the current phase carries, once. An EVENT beat (no `at`) is a
+     line and a sound: it changes nothing about what counts. A PLACED beat (an
+     `at` position) is a place the player must stand before the phase's metric
+     starts counting — a counter you can farm from anywhere is not a scripted
+     moment, and `bump()`/`update()` refuse to count while one is pending. */
+  _fireBeat() {
+    const p = this.currentPhase;
+    const b = p && p.beat ? p.beat : null;
+    this.beat = b;
+    this.beatPending = false;
+    this.beacon = null;
+    if (!b) return;
+    if (Array.isArray(b.at) && b.at.length >= 2) {
+      this.beatPending = true;
+      this.beacon = { x: b.at[0], z: b.at[1], radius: b.radius > 0 ? b.radius : 6 };
+    }
+    if (this.hud) {
+      this.hud.banner('BEAT', b.text);
+      // The placed objective is the HUD's existing waypoint, so the marker the
+      // player already reads is the one the beat puts down — no second marker.
+      // Optional: a bare HUD (a test stub, another game) need not have a map.
+      if (this.beacon && typeof this.hud.setWaypoint === 'function') {
+        this.hud.setWaypoint({ x: this.beacon.x, z: this.beacon.z });
+      }
+    }
+    if (this.audio) this.audio.warn();
+    if (this.onBeat) {
+      this.onBeat({
+        mission: this.current ? this.current.id : null,
+        missionIndex: this.index, phase: this.phase,
+        text: b.text, at: this.beacon ? { x: this.beacon.x, z: this.beacon.z } : null,
+        radius: this.beacon ? this.beacon.radius : 0,
+      });
+    }
+  }
+
+  /* The player is standing at (x, z) — the engine calls this every frame it has a
+     pending beat, and the campaign does the distance test. Returns true only on
+     the frame that clears the beat, so a caller cannot fire it twice. */
+  reach(x, z) {
+    if (!this.active || this.done || !this.beatPending || !this.beacon) return false;
+    const dx = x - this.beacon.x, dz = z - this.beacon.z;
+    if (dx * dx + dz * dz > this.beacon.radius * this.beacon.radius) return false;
+    this.beatPending = false;
+    const p = this.currentPhase;
+    if (this.hud && p) {
+      this.hud.banner('IN POSITION', p.brief);
+      this.hud.setObjective(this._label(this.current), p.brief);
+    }
+    return true;
   }
 
   /* the game feeds these in */
   bump(metric, n = 1) {
-    if (!this.active || this.done) return;
+    if (!this.active || this.done || this.beatPending) return;
     const p = this.currentPhase;
     if (p && p.metric === metric) this.progress += n;
   }
@@ -148,6 +231,14 @@ export class Campaign {
     const m = this.current; if (!m) return;
     const phases = phasesOf(m);
     let p = this.currentPhase;
+
+    // A placed beat holds the phase at zero until the player is there. The
+    // objective keeps naming the beat's line, so the wait never reads as a stall.
+    if (this.beatPending) {
+      if (this.hud) this.hud.setObjective(this._label(m), `${p.brief}   (reach the marker)`);
+      return;
+    }
+
     if (p.metric === 'seconds') this.progress += dt;
 
     if (this.hud) {
@@ -159,7 +250,7 @@ export class Campaign {
 
     // A phase may be over-satisfied by one big frame (or by a bump of 99), and a
     // set-piece has several phases, so this is a loop and not an `if`.
-    while (this.active && !this.done && p && this.progress >= p.goal) {
+    while (this.active && !this.done && !this.beatPending && p && this.progress >= p.goal) {
       const isLastPhase = this.phase >= phases.length - 1;
 
       if (!isLastPhase) {
@@ -176,6 +267,10 @@ export class Campaign {
           this.hud.setObjective(this._label(m), p.brief);
         }
         if (this.audio) this.audio.warn();
+        // The beat belongs to the phase that just opened, and it is fired here —
+        // between phases — so a set-piece's scripted moment lands where it is
+        // written rather than at the end of the mission.
+        this._fireBeat();
         continue;
       }
 
@@ -196,6 +291,7 @@ export class Campaign {
 
   _finish() {
     this._clearPending();
+    this.beatPending = false; this.beacon = null; this.beat = null;
     this.done = true; this.active = false;
     if (this.hud) { this.hud.banner('CAMPAIGN COMPLETE', 'you cleared every mission'); this.hud.setObjective('CAMPAIGN COMPLETE', 'free roam'); }
     if (this.music) this.music.sting('win');
