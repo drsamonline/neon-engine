@@ -33,12 +33,17 @@ What is done, what is planned, and what is deliberately out of scope.
 - Two-floor building interiors in the city: a slab at 3.3 m cut by a stairwell, an
   inside staircase within the controller's step limit, and loot that can only be
   reached from upstairs (`tests/world.cjs` asserts every one of those)
+- **Authored beats inside a set-piece** — a phase can open with a scripted moment: an
+  *event* (a line the mission says) or a *placed* objective (a spot the player must
+  stand on before the phase's metric counts at all), with `reach()` and
+  `tests/campaign.cjs` guarding both kinds
 - Drivable vehicles with arcade handling (`vehicle.js`)
 
 ## Planned
 
-- More set-pieces, and authored beats inside a mission (a scripted event between phases,
-  not only a counter) — the phase engine is the seam they can now hang from
+- More set-pieces — the phase engine and its beats are the seam a new one hangs from
+- Beats that change the world, not only the objective: a placed beat currently moves the
+  player, and the next honest step is one that also changes what spawns where
 
 ## Considered and rejected
 

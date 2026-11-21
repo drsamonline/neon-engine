@@ -858,7 +858,13 @@ export class GameBase {
       const t = this.stats.time;
       this.director.difficulty = this.cfg.difficulty ? this.cfg.difficulty(this)
         : (1 + 2.6 * (1 - Math.exp(-t / 180)) + t / 900);
-      if (this.campaign && this.campaign.active) this.campaign.update(dt);
+      if (this.campaign && this.campaign.active) {
+        this.campaign.update(dt);
+        // An authored beat can place an objective in the world, and standing on
+        // it is what opens the phase — the campaign does the distance test, so
+        // the engine only has to say where the player is.
+        if (this.campaign.beatPending) this.campaign.reach(this.player.pos.x, this.player.pos.z);
+      }
       if (this.input.once('replay')) this.toggleReplay();
       if (this.cfg.onGameplayKeys) this.cfg.onGameplayKeys(this);
       if (this.store) this.store.priceMod = this.repMod || 1;

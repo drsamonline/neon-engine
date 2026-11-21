@@ -20,6 +20,9 @@
 //   * a SET-PIECE mission (1.25.0) is cleared phase by phase, in order: a later
 //     phase's metric cannot advance an earlier one, the first phase does not
 //     complete the mission, and surplus carries only within one metric;
+//   * an AUTHORED BEAT (1.26.0) is a scripted moment between phases: a placed
+//     beat holds its phase at zero until the player stands where it put them, an
+//     event beat is a line and changes nothing, and neither can fire twice;
 //   * a metric that is not the current mission's does nothing;
 //   * restarting inside the hand-off gap does not silently reset the new run.
 //
@@ -112,6 +115,13 @@ async function main() {
       const p = phases[pi];
       ok(`mission ${i + 1} "${m.title}" is on phase ${pi + 1}/${phases.length}`,
         campaign.phase === pi, `phase is ${campaign.phase}`);
+      // A phase can open with an authored beat, and a PLACED one holds the phase
+      // until the player walks to it. The walk below is a player, so it walks.
+      if (campaign.beatPending) {
+        ok(`mission ${i + 1} phase ${pi + 1} beat is reachable`,
+          campaign.reach(campaign.beacon.x, campaign.beacon.z) === true,
+          'a placed beat that reach() cannot clear is a phase nobody can finish');
+      }
       // The engine checks the goal in update(), not in bump(), so a frame is what
       // turns a reached goal into a completed mission — exactly as in play.
       if (timeMetrics.has(p.metric)) campaign.update(p.goal);
@@ -207,6 +217,7 @@ async function main() {
   // Walk the rest of the set-piece to the end; the reward is paid exactly once.
   for (let pi = 1; pi < spPhases.length; pi++) {
     const p = spPhases[pi];
+    if (c4.beatPending) c4.reach(c4.beacon.x, c4.beacon.z);
     if (timeMetrics.has(p.metric)) c4.update(p.goal); else { c4.bump(p.metric, p.goal); c4.update(0); }
     await flush();
   }
@@ -242,6 +253,97 @@ async function main() {
   ok('surplus does NOT carry into a phase measured by another metric',
     crossMetric.phase === 1 && crossMetric.progress === 0,
     `phase ${crossMetric.phase}, progress ${crossMetric.progress} (expected 1 and 0)`);
+
+  // ---- 6. authored beats: a scripted moment between phases --------------
+  // The roadmap's open item after 1.25.0 was "authored beats inside a mission (a
+  // scripted event between phases, not only a counter)". A beat is not a number:
+  // an EVENT beat is a line the mission says, and a PLACED beat is a spot in the
+  // world the player must stand on before the phase's metric counts at all.
+  const shippedBeats = [];
+  MISSIONS.forEach((m) => phasesOf(m).forEach((p, pi) => { if (p.beat) shippedBeats.push({ m, p, pi }); }));
+  ok('the shipped chain uses authored beats', shippedBeats.length >= 2,
+    `${shippedBeats.length} beat(s) in ${MISSIONS.length} missions — the roadmap item is still unbuilt`);
+  ok('every shipped beat says something out loud',
+    shippedBeats.every((b) => typeof b.p.beat.text === 'string' && b.p.beat.text.trim().length > 8),
+    'a beat with no line is a pause, not a scripted moment');
+  ok('a shipped beat is PLACED — a spot in the world, not only a counter',
+    shippedBeats.some((b) => Array.isArray(b.p.beat.at) && b.p.beat.at.length === 2
+      && b.p.beat.at.every((n) => typeof n === 'number' && Number.isFinite(n))),
+    'no beat places the player anywhere, so every beat is decoration');
+  ok('a shipped beat is an EVENT — a line with no place',
+    shippedBeats.some((b) => !b.p.beat.at));
+  ok('every shipped beat opens a phase after the mission\'s first',
+    shippedBeats.every((b) => b.pi > 0),
+    'a beat on phase 1 fires before the set-piece has established anything');
+  ok('the engine reads the player\'s position for a pending beat',
+    /campaign\.reach\(\s*this\.player\.pos\.x/.test(baseText),
+    'gamebase.js never calls campaign.reach() — a placed beat could never be cleared in play');
+
+  // A placed beat, synthetic so the rule is tested rather than the content.
+  const beatLines = [];
+  const beatsSeen = [];
+  const placed = new Campaign({
+    stepDelay: 0,
+    hud: { banner(t, s) { beatLines.push('BANNER ' + t + ' — ' + s); }, setObjective() {}, setWaypoint(w) { beatLines.push('WAYPOINT ' + JSON.stringify(w)); } },
+    onBeat: (b) => beatsSeen.push(b),
+    missions: [{ id: 'z', title: 'Z', brief: 'z', reward: 7, phases: [
+      { brief: 'clear the yard', metric: 'kills', goal: 5 },
+      { brief: 'walk in and break it', metric: 'cores', goal: 1, beat: { text: 'The yard is quiet. The door is open.', at: [10, -4], radius: 3 } },
+    ] }],
+  });
+  placed.start();
+  ok('a mission whose first phase has no beat opens with none',
+    placed.beatPending === false && placed.beacon === null && beatsSeen.length === 0);
+  placed.bump('kills', 5); placed.update(0);
+  ok('clearing a phase opens the next phase\'s beat',
+    placed.phase === 1 && placed.beatPending === true,
+    `phase ${placed.phase}, beatPending ${placed.beatPending}`);
+  ok('the beat put the player somewhere specific',
+    placed.beacon && placed.beacon.x === 10 && placed.beacon.z === -4 && placed.beacon.radius === 3,
+    `beacon is ${JSON.stringify(placed.beacon)}`);
+  ok('the beat is announced and marked', beatLines.some((l) => l.startsWith('BANNER BEAT'))
+    && beatLines.some((l) => l === 'WAYPOINT {"x":10,"z":-4}'),
+    `lines: ${JSON.stringify(beatLines)}`);
+  ok('the beat reached the world exactly once, with its mission and phase',
+    beatsSeen.length === 1 && beatsSeen[0].mission === 'z' && beatsSeen[0].phase === 1
+    && beatsSeen[0].at && beatsSeen[0].at.x === 10,
+    `beatsSeen: ${JSON.stringify(beatsSeen)}`);
+
+  // While a placed beat is pending, the phase is a PLACE, not a counter: neither
+  // a kill from across the map nor a long frame may advance it.
+  placed.bump('cores', 5); placed.update(30);
+  ok('a pending beat counts nothing from where the player stands',
+    placed.progress === 0 && placed.phase === 1,
+    `progress ${placed.progress}, phase ${placed.phase}`);
+  ok('a pending beat is not re-fired on every frame', beatsSeen.length === 1,
+    `onBeat fired ${beatsSeen.length} times for one beat`);
+
+  ok('standing short of the marker does not clear the beat',
+    placed.reach(14, -4) === false && placed.beatPending === true,
+    'reach() cleared a beat the player has not arrived at');
+  ok('standing on the marker clears the beat',
+    placed.reach(10, -4) === true && placed.beatPending === false);
+  ok('a cleared beat cannot be cleared twice', placed.reach(10, -4) === false);
+  placed.bump('cores', 1); placed.update(0);
+  ok('the phase counts once its beat is reached and the mission completes',
+    placed.done === true, `done ${placed.done}, phase ${placed.phase}, progress ${placed.progress}`);
+
+  // An EVENT beat is a line, not a gate: the phase counts from the first frame.
+  const eventSeen = [];
+  const evt = new Campaign({
+    stepDelay: 0,
+    onBeat: (b) => eventSeen.push(b),
+    missions: [{ id: 'e', title: 'E', brief: 'e', reward: 1, phases: [
+      { brief: 'wait it out', metric: 'seconds', goal: 10, beat: { text: 'Nothing comes now but the dust.' } },
+    ] }],
+  });
+  evt.start();
+  ok('an event beat does not place the player anywhere',
+    evt.beatPending === false && evt.beacon === null && eventSeen.length === 1,
+    `beatPending ${evt.beatPending}, beats ${eventSeen.length}`);
+  ok('an event beat reports no position to the world', eventSeen[0] && eventSeen[0].at === null);
+  evt.update(10);
+  ok('an event beat does not hold its phase', evt.done === true, `done ${evt.done}`);
 
   // ---- report -----------------------------------------------------------
   if (failures.length) {
