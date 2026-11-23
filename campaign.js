@@ -13,6 +13,11 @@
 // player has to walk to before the phase's metric starts counting at all. See
 // `_fireBeat()` and `reach()`. A counter alone is not a beat; a beat is a thing
 // that happens to you.
+//
+// A beat can also change the WORLD, not only the player's place in it (1.27.0):
+// a `spawn` directive hands the phase a different spawn table — more of them,
+// faster, a different mix — and the table the phase opened with is put back when
+// the phase closes. See `mergeSpawnTable()` and `_applyBeatSpawn()`.
 
 /**
  * The mission table: title, brief, metric, goal, reward.
@@ -48,6 +53,10 @@ export const MISSIONS = [
         beat: {
           text: 'The perimeter drops. The core chamber is two streets in — the alarm is already screaming.',
           at: [0, -70], radius: 8,
+          // ...and the alarm brings them: the world the player walks into is not
+          // the one the first phase was fought in. Spitters, a bigger cap, a
+          // shorter interval — a partial table, so difficulty is left alone.
+          spawn: { pool: ['walker', 'runner', 'spitter'], maxAlive: 22, spawnInterval: 1.1 },
         },
         brief: 'Get to the core chamber, then destroy the core.', metric: 'cores', goal: 1,
       },
@@ -62,8 +71,12 @@ export const MISSIONS = [
       { brief: 'Put down the champion they send.', metric: 'bosses', goal: 1 },
       {
         // An EVENT beat, with no place: the last minute is meant to be waited
-        // out, and this is the mission saying so before the clock starts.
-        beat: { text: 'The champion is down. Nothing comes now but the dust — stand in it.' },
+        // out, and this is the mission saying so before the clock starts — so the
+        // horde is thinned to almost nothing for exactly as long as it says.
+        beat: {
+          text: 'The champion is down. Nothing comes now but the dust — stand in it.',
+          spawn: { maxAlive: 2, spawnInterval: 9 },
+        },
         brief: 'Survive a minute while it settles.', metric: 'seconds', goal: 60,
       },
     ],
@@ -78,6 +91,36 @@ export const MISSIONS = [
 export function phasesOf(m) {
   if (m && Array.isArray(m.phases) && m.phases.length) return m.phases;
   return [{ brief: m.brief, metric: m.metric, goal: m.goal }];
+}
+
+// The spawn table a beat asks for is a PARTIAL table — it names only what
+// changes — so this merges it over the table the world has now. That is the
+// whole of the contract: `{ maxAlive: 22 }` means "more of them", not "forget
+// the pool".
+//
+// A directive is CONTENT, so a bad one must neither throw nor half-apply: a value
+// that is not a finite number, or is outside what the engine can honour, is
+// ignored and the world keeps what it had. Silently clamping would be worse —
+// the author would think `maxAlive: 999` landed.
+const SPAWN_RANGES = { maxAlive: [1, 38], spawnInterval: [0.05, 600], difficulty: [1, 99] };
+/**
+ * Merge a beat's partial spawn table over the table a world already has.
+ */
+export function mergeSpawnTable(base, directive) {
+  const out = { ...(base && typeof base === 'object' ? base : {}) };
+  if (!directive || typeof directive !== 'object') return out;
+  if (Array.isArray(directive.pool)) {
+    const pool = directive.pool.filter((t) => typeof t === 'string' && t.length);
+    if (pool.length && pool.length === directive.pool.length) out.pool = pool.slice();
+  }
+  for (const key of Object.keys(SPAWN_RANGES)) {
+    const v = directive[key];
+    if (typeof v !== 'number' || !Number.isFinite(v)) continue;
+    const [lo, hi] = SPAWN_RANGES[key];
+    if (v < lo || v > hi) continue;
+    out[key] = key === 'spawnInterval' || key === 'difficulty' ? v : Math.floor(v);
+  }
+  return out;
 }
 
 // The metrics a mission can be measured by that the campaign advances ITSELF:
@@ -110,6 +153,13 @@ export class Campaign {
     this.beat = null;
     this.beacon = null;
     this.beatPending = false;
+    // The world a beat may change — anything with `spawnTable()` and
+    // `setSpawnTable(t)`, which the engine's Director is. Optional: a bare
+    // campaign or a test stub need not have one, and a beat's spawn directive
+    // then reports itself as unapplied rather than pretending it landed.
+    this.world = hooks.world || null;
+    this.beatSpawn = null;   // the table a beat handed the world, if it landed
+    this._baseSpawn = null;  // the table it replaced, restored when the phase closes
     // The mission list is overridable so a test can exercise a shape the shipped
     // chain does not happen to contain (e.g. two consecutive phases on one metric).
     this.missions = Array.isArray(hooks.missions) && hooks.missions.length ? hooks.missions : MISSIONS;
@@ -158,6 +208,9 @@ export class Campaign {
     const m = this.current;
     if (!m) { this._finish(); return; }
     this.progress = 0; this.timer = 0; this.phase = 0;
+    // A new mission starts from the world it was written against, never from
+    // whatever the last mission's beat left behind.
+    this._restoreSpawn();
     this.beatPending = false; this.beacon = null; this.beat = null;
     if (this.hud) {
       this.hud.banner(m.title, m.brief);
@@ -183,6 +236,7 @@ export class Campaign {
       this.beatPending = true;
       this.beacon = { x: b.at[0], z: b.at[1], radius: b.radius > 0 ? b.radius : 6 };
     }
+    this._applyBeatSpawn(b);
     if (this.hud) {
       this.hud.banner('BEAT', b.text);
       // The placed objective is the HUD's existing waypoint, so the marker the
@@ -199,8 +253,36 @@ export class Campaign {
         missionIndex: this.index, phase: this.phase,
         text: b.text, at: this.beacon ? { x: this.beacon.x, z: this.beacon.z } : null,
         radius: this.beacon ? this.beacon.radius : 0,
+        // The spawn table the beat handed the world, or null when it asked for
+        // none or there was no world to hand it to.
+        spawn: this.beatSpawn ? { ...this.beatSpawn, pool: (this.beatSpawn.pool || []).slice() } : null,
       });
     }
+  }
+
+  /* Apply the spawn directive a beat carries, once, remembering the table it
+     replaced. Nothing here throws: a beat that asks for a world change with no
+     world in reach is a beat that has no world change, and `beatSpawn` says so. */
+  _applyBeatSpawn(b) {
+    this.beatSpawn = null;
+    if (!b || !b.spawn || !this.world || typeof this.world.setSpawnTable !== 'function') return;
+    if (this._baseSpawn === null && typeof this.world.spawnTable === 'function') {
+      this._baseSpawn = this.world.spawnTable();
+    }
+    this.beatSpawn = mergeSpawnTable(this._baseSpawn || {}, b.spawn);
+    this.world.setSpawnTable(this.beatSpawn);
+  }
+
+  /* Put the table back: when the phase that asked for it closes, when its mission
+     completes, and when a new run starts. A mission that touches the world and
+     does not put it back is how one set-piece's escalation leaks into the next
+     eighteen missions. */
+  _restoreSpawn() {
+    if (this._baseSpawn !== null && this.world && typeof this.world.setSpawnTable === 'function') {
+      this.world.setSpawnTable(this._baseSpawn);
+    }
+    this._baseSpawn = null;
+    this.beatSpawn = null;
   }
 
   /* The player is standing at (x, z) — the engine calls this every frame it has a
@@ -267,6 +349,9 @@ export class Campaign {
           this.hud.setObjective(this._label(m), p.brief);
         }
         if (this.audio) this.audio.warn();
+        // The phase that asked for a table is over, so the world goes back to the
+        // one it had before the next phase's beat asks for its own.
+        this._restoreSpawn();
         // The beat belongs to the phase that just opened, and it is fired here —
         // between phases — so a set-piece's scripted moment lands where it is
         // written rather than at the end of the mission.
@@ -275,6 +360,7 @@ export class Campaign {
       }
 
       // mission complete
+      this._restoreSpawn();
       if (this.onReward) this.onReward(m.reward);
       if (this.hud) this.hud.banner('MISSION COMPLETE', `+${m.reward} coins`);
       if (this.music) this.music.sting('win');
@@ -291,6 +377,7 @@ export class Campaign {
 
   _finish() {
     this._clearPending();
+    this._restoreSpawn();
     this.beatPending = false; this.beacon = null; this.beat = null;
     this.done = true; this.active = false;
     if (this.hud) { this.hud.banner('CAMPAIGN COMPLETE', 'you cleared every mission'); this.hud.setObjective('CAMPAIGN COMPLETE', 'free roam'); }

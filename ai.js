@@ -792,6 +792,29 @@ export class Director {
     return this.spawnAt(typeId, pos);
   }
 
+  /* The spawn table as DATA (1.27.0): what a campaign beat, a boss phase or a mod
+     hands the director instead of reaching into its fields. Read it back before
+     changing it, and hand it back when the moment is over. */
+  spawnTable() {
+    return { pool: this.pool.slice(), maxAlive: this.maxAlive, spawnInterval: this.spawnInterval, difficulty: this.difficulty };
+  }
+
+  /* Apply a (possibly partial) table and return the one now in force. A bad value
+     is IGNORED rather than clamped or thrown on: a table comes from content, and
+     content that names `maxAlive: 999` or a pool of numbers must not take the run
+     down or silently become 38 while its author believes otherwise. */
+  setSpawnTable(t) {
+    if (!t || typeof t !== 'object') return this.spawnTable();
+    if (Array.isArray(t.pool)) {
+      const pool = t.pool.filter((id) => typeof id === 'string' && ENEMY_TYPES[id]);
+      if (pool.length && pool.length === t.pool.length) this.pool = pool.slice();
+    }
+    if (Number.isFinite(t.maxAlive) && t.maxAlive >= 1 && t.maxAlive <= 38) this.maxAlive = Math.floor(t.maxAlive);
+    if (Number.isFinite(t.spawnInterval) && t.spawnInterval >= 0.05) this.spawnInterval = t.spawnInterval;
+    if (Number.isFinite(t.difficulty) && t.difficulty >= 1) this.difficulty = t.difficulty;
+    return this.spawnTable();
+  }
+
   update(dt, player, ctx) {
     if (this.onSummon) ctx.onSummon = this.onSummon;
     for (const e of this.enemies) {

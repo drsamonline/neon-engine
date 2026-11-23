@@ -23,6 +23,9 @@
 //   * an AUTHORED BEAT (1.26.0) is a scripted moment between phases: a placed
 //     beat holds its phase at zero until the player stands where it put them, an
 //     event beat is a line and changes nothing, and neither can fire twice;
+//   * a beat that changes the WORLD (1.27.0) hands its phase a spawn table, and
+//     the table the phase opened with is put back when the phase closes — so one
+//     set-piece's escalation cannot follow the player through the next mission;
 //   * a metric that is not the current mission's does nothing;
 //   * restarting inside the hand-off gap does not silently reset the new run.
 //
@@ -44,7 +47,7 @@ const flush = (ms = 5) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
   const mod = await import(path.join(ROOT, 'campaign.js'));
-  const { MISSIONS, TIME_METRICS, MISSION_METRICS, phasesOf, Campaign } = mod;
+  const { MISSIONS, TIME_METRICS, MISSION_METRICS, phasesOf, mergeSpawnTable, Campaign } = mod;
 
   // ---- 1. the wiring guard: a mission's metric must be reachable ----------
   ok('campaign.js exports its missions', Array.isArray(MISSIONS) && MISSIONS.length > 0);
@@ -344,6 +347,145 @@ async function main() {
   ok('an event beat reports no position to the world', eventSeen[0] && eventSeen[0].at === null);
   evt.update(10);
   ok('an event beat does not hold its phase', evt.done === true, `done ${evt.done}`);
+
+  // ---- 4. a beat that changes the WORLD, not only the player's place ------
+  // 1.27.0. A beat used to move the player and nothing else, so a set-piece's
+  // middle was a place to stand in an unchanged world. Now it may hand its phase a
+  // spawn table — and the table the phase opened with goes back when the phase
+  // closes, because an escalation that leaks is worse than no escalation.
+  ok('mergeSpawnTable() is exported', typeof mergeSpawnTable === 'function');
+
+  const baseTable = { pool: ['walker', 'runner'], maxAlive: 14, spawnInterval: 2.2, difficulty: 1 };
+  const mergedTable = mergeSpawnTable(baseTable, { maxAlive: 22, spawnInterval: 1.1 });
+  ok('a partial table changes only the keys it names',
+    mergedTable.maxAlive === 22 && mergedTable.spawnInterval === 1.1
+    && mergedTable.pool.join() === 'walker,runner' && mergedTable.difficulty === 1,
+    `merged: ${JSON.stringify(mergedTable)}`);
+  ok('merging leaves the table it was handed untouched',
+    baseTable.maxAlive === 14 && baseTable.spawnInterval === 2.2);
+  ok('a value the engine cannot honour is ignored, not clamped and not thrown on',
+    mergeSpawnTable(baseTable, { maxAlive: 999 }).maxAlive === 14
+    && mergeSpawnTable(baseTable, { maxAlive: 0 }).maxAlive === 14
+    && mergeSpawnTable(baseTable, { spawnInterval: -1 }).spawnInterval === 2.2
+    && mergeSpawnTable(baseTable, { difficulty: NaN }).difficulty === 1,
+    'a clamped 999 would tell the author their table landed when it did not');
+  ok('a pool with a non-string in it is ignored whole, not half-applied',
+    mergeSpawnTable(baseTable, { pool: ['walker', 7] }).pool.join() === 'walker,runner'
+    && mergeSpawnTable(baseTable, { pool: [] }).pool.join() === 'walker,runner');
+  ok('an absent or empty directive is a no-op',
+    JSON.stringify(mergeSpawnTable(baseTable, null)) === JSON.stringify(baseTable)
+    && JSON.stringify(mergeSpawnTable(baseTable, {})) === JSON.stringify(baseTable));
+
+  // A world, shaped like the engine's Director: read the table, write the table.
+  const live = { pool: ['walker', 'runner'], maxAlive: 14, spawnInterval: 2.2, difficulty: 1 };
+  let writes = 0;
+  const world = {
+    spawnTable() { return { ...live, pool: live.pool.slice() }; },
+    setSpawnTable(t) {
+      writes++;
+      if (Array.isArray(t.pool)) live.pool = t.pool.slice();
+      for (const k of ['maxAlive', 'spawnInterval', 'difficulty']) if (Number.isFinite(t[k])) live[k] = t[k];
+      return this.spawnTable();
+    },
+  };
+  const worldBeats = [];
+  const wc = new Campaign({
+    stepDelay: 0, world, onBeat: (b) => worldBeats.push(b),
+    missions: [{ id: 'w', title: 'W', brief: 'w', reward: 3, phases: [
+      { brief: 'clear the street', metric: 'kills', goal: 4 },
+      { brief: 'break it while they come', metric: 'cores', goal: 1,
+        beat: { text: 'The alarm goes off.', spawn: { pool: ['walker', 'brute'], maxAlive: 22, spawnInterval: 1.1 } } },
+      { brief: 'walk out', metric: 'extractions', goal: 1 },
+    ] }],
+  });
+  wc.start();
+  ok('a phase with no beat never touches the world', writes === 0, `setSpawnTable called ${writes} time(s)`);
+  wc.bump('kills', 4); wc.update(0);
+  ok('a beat\'s spawn directive reaches the world when its phase opens',
+    live.maxAlive === 22 && live.spawnInterval === 1.1 && live.pool.includes('brute') && live.difficulty === 1,
+    `live: ${JSON.stringify(live)}`);
+  ok('the beat reports the table it handed the world',
+    worldBeats.length === 1 && worldBeats[0].spawn && worldBeats[0].spawn.maxAlive === 22,
+    `worldBeats: ${JSON.stringify(worldBeats)}`);
+  wc.bump('cores', 1); wc.update(0);
+  ok('closing the phase puts the table back',
+    live.maxAlive === 14 && live.spawnInterval === 2.2 && live.pool.join() === 'walker,runner',
+    `live: ${JSON.stringify(live)}`);
+  wc.bump('extractions', 1); wc.update(0);
+  ok('the mission still completes with a world-changing beat in it',
+    wc.done === true && live.maxAlive === 14, `done ${wc.done}, live ${JSON.stringify(live)}`);
+
+  // The leak this design exists to prevent: mission 1 escalates the horde, mission
+  // 2 must open on the table it was written against.
+  const leakBeats = [];
+  const leaky = new Campaign({
+    stepDelay: 0, world, onBeat: (b) => leakBeats.push(b),
+    missions: [
+      { id: 'a', title: 'A', brief: 'a', reward: 1, phases: [
+        { brief: 'hold', metric: 'defences', goal: 1, beat: { text: 'They are coming.', spawn: { maxAlive: 30, spawnInterval: 0.7 } } },
+      ] },
+      { id: 'b', title: 'B', brief: 'b', metric: 'kills', goal: 2, reward: 1 },
+    ],
+  });
+  leaky.start();
+  ok('a beat on a mission\'s first phase applies its table', live.maxAlive === 30,
+    `live: ${JSON.stringify(live)}`);
+  leaky.start(1);
+  ok('starting another mission puts the table back before it opens',
+    live.maxAlive === 14 && live.spawnInterval === 2.2, `live: ${JSON.stringify(live)}`);
+  leaky.start(0);
+  ok('re-entering the beat\'s mission applies it again, over the restored table',
+    live.maxAlive === 30 && live.spawnInterval === 0.7, `live: ${JSON.stringify(live)}`);
+  leaky.bump('defences', 1); leaky.update(0);
+  ok('the table is back the moment the mission completes, before the hand-off gap',
+    live.maxAlive === 14 && live.spawnInterval === 2.2,
+    'a 2.2 s hand-off still spent at the escalation is the leak, in miniature');
+  await flush();
+  ok('the next mission opens on the table it was written against, not the last beat\'s',
+    leaky.index === 1 && live.maxAlive === 14 && live.spawnInterval === 2.2,
+    `index ${leaky.index}, live ${JSON.stringify(live)}`);
+  ok('no beat fired for the next mission, which carries none of its own',
+    leakBeats.length === 2 && leakBeats.every((b) => b.mission === 'a'),
+    `beats: ${JSON.stringify(leakBeats.map((b) => b.mission))}`);
+
+  // A beat that asks for a world with no world in reach is not an error: it is a
+  // beat with no world change, and the payload has to say so rather than claim it.
+  const nowhereBeats = [];
+  const nowhere = new Campaign({
+    stepDelay: 0, onBeat: (b) => nowhereBeats.push(b),
+    missions: [{ id: 'n', title: 'N', brief: 'n', reward: 1, phases: [
+      { brief: 'go', metric: 'kills', goal: 1, beat: { text: 'Only the line.', spawn: { maxAlive: 30 } } },
+    ] }],
+  });
+  let threw = null;
+  try { nowhere.start(); } catch (e) { threw = e; }
+  ok('a spawn directive with no world hook does not throw', threw === null, threw && threw.message);
+  ok('and it reports no table rather than a table it did not apply',
+    nowhere.beatSpawn === null && nowhereBeats.length === 1 && nowhereBeats[0].spawn === null,
+    `beatSpawn ${JSON.stringify(nowhere.beatSpawn)}`);
+
+  // The engine side: the campaign is handed a world, and that world is the
+  // Director, which exposes its table as data.
+  const aiText = read('ai.js');
+  ok('gamebase.js hands the campaign its spawn director as the world',
+    /new Campaign\(\{[^}]*world:\s*this\.director/s.test(baseText),
+    'no `world: this.director` — a beat could change nothing in play');
+  ok('the Director reads and writes its spawn table',
+    /spawnTable\(\)\s*\{/.test(aiText) && /setSpawnTable\(t\)\s*\{/.test(aiText));
+  ok('the Director refuses a pool naming an enemy type it does not have',
+    /ENEMY_TYPES\[id\]/.test(aiText),
+    'setSpawnTable() must validate the pool, or a beat can spawn a type that does not exist');
+
+  // And the shipped content uses it, with directives the merge actually honours.
+  const spawnBeats = shippedBeats.filter((b) => b.p.beat.spawn);
+  ok('a shipped beat changes the world, not only the player', spawnBeats.length >= 1,
+    'no shipped beat carries a spawn directive, so the feature is tested but unplayed');
+  ok('every shipped spawn directive names at least one key the engine honours',
+    spawnBeats.every((b) => Object.keys(mergeSpawnTable({}, b.p.beat.spawn)).length > 0),
+    `directives: ${JSON.stringify(spawnBeats.map((b) => b.p.beat.spawn))}`);
+  ok('a shipped spawn directive is partial — it does not restate a whole table',
+    spawnBeats.every((b) => Object.keys(b.p.beat.spawn).length < 4),
+    'a full table in content is a table that will drift from the engine\'s defaults');
 
   // ---- report -----------------------------------------------------------
   if (failures.length) {

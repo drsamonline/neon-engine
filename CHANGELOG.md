@@ -3,6 +3,44 @@
 All notable changes to the Neon Engine and its games.
 Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://semver.org/).
 
+## [1.27.0] — 2026-11-23
+
+### Added — a beat that changes the world, not only the player's place in it
+
+The roadmap's one open item was *"beats that change the world, not only the objective"*:
+a placed beat moved the player and left everything else exactly as it was, so a
+set-piece's middle was a walk through the same horde. A beat can now hand its phase a
+**spawn table**.
+
+- A phase's beat may carry `spawn: { pool?, maxAlive?, spawnInterval?, difficulty? }` —
+  a **partial** table. `{ maxAlive: 22 }` means "more of them", not "forget the pool".
+- `mergeSpawnTable(base, directive)` (exported) merges the directive over the table the
+  world has now, and **ignores** a value the engine cannot honour instead of clamping it:
+  `maxAlive: 999` leaves the table alone rather than becoming 38 while its author
+  believes it landed. A pool with one non-string in it is ignored whole, never
+  half-applied. Nothing in it throws — it is content, and content must not take a run down.
+- `new Campaign({ world })` takes the world a beat may change: anything with
+  `spawnTable()` and `setSpawnTable(t)`. `GameBase` passes `this.director`, so in play a
+  beat's table reaches the spawn director; a bare campaign or a test stub without one is
+  not an error, and the beat's payload then reports `spawn: null` rather than a table it
+  never applied.
+- The table the phase opened with is **put back** when the phase closes, when its mission
+  completes (before the 2.2 s hand-off, not after it), and when a new run starts — so one
+  set-piece's escalation cannot follow the player through the other seventeen missions.
+- `Director.spawnTable()` / `Director.setSpawnTable(t)` expose the table as data. The
+  director validates the pool against `ENEMY_TYPES`, so a beat cannot spawn a type that
+  does not exist.
+- `onBeat`'s payload gains `spawn`: the table the beat handed the world, or `null`.
+- Content: **THE BREACH**'s core-chamber beat brings spitters, a 22-strong cap and a
+  1.1 s interval (the alarm is screaming); **LAST LIGHT**'s dust beat thins the horde to
+  2 at a 9 s interval ("nothing comes now but the dust").
+- `tests/campaign.cjs` grew from 102 to **127** assertions. Ten mutations, each red: the
+  beat never applies its table; the restore never writes it back; an out-of-range value
+  clamped instead of ignored; the phase close does not restore; the mission completion
+  does not restore; a half-valid pool applied; the payload hides the table it applied; a
+  new mission inherits the last table; the campaign is never handed a world; and a
+  control on the existing `phase` reset.
+
 ## [1.26.0] — 2026-11-21
 
 ### Added — authored beats: a scripted moment between phases, not another counter

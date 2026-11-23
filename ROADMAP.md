@@ -37,13 +37,20 @@ What is done, what is planned, and what is deliberately out of scope.
   *event* (a line the mission says) or a *placed* objective (a spot the player must
   stand on before the phase's metric counts at all), with `reach()` and
   `tests/campaign.cjs` guarding both kinds
+- **Beats that change the world** — a beat can hand its phase a partial spawn table
+  (`spawn: { pool, maxAlive, spawnInterval }`), applied when the phase opens and put
+  back when it closes, through `Director.spawnTable()` / `setSpawnTable()`;
+  `mergeSpawnTable()` ignores a value the engine cannot honour rather than clamping it
+  (`tests/campaign.cjs`)
 - Drivable vehicles with arcade handling (`vehicle.js`)
 
 ## Planned
 
-- More set-pieces — the phase engine and its beats are the seam a new one hangs from
-- Beats that change the world, not only the objective: a placed beat currently moves the
-  player, and the next honest step is one that also changes what spawns where
+- More set-pieces — the phase engine, its beats and their spawn tables are the seam a
+  new one hangs from
+- A beat that rewrites the **objective** mid-phase, not only what spawns: a phase's
+  brief is fixed once it opens, so a mission cannot yet change its mind about what it
+  is asking for
 
 ## Considered and rejected
 

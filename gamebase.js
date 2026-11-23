@@ -229,7 +229,10 @@ export class GameBase {
     this._clock = new THREE.Clock();
     this._applyProgression();
     if (this.cfg.campaign) {
+      // `world` is the spawn director: a beat can thin or thicken the horde for the
+      // phase it opens, and the campaign puts the table back when that phase ends.
       this.campaign = new Campaign({ hud: this.hud, audio: this.audio, music: this.music,
+        world: this.director,
         onReward: (c) => { this.progression.addCoins(c); this.meta.add('coins', c); } });
     }
     this._initExtras();

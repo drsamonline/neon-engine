@@ -145,7 +145,15 @@ Enemy: `update(dt, player, ctx)` · `damage(n, point, dir)` · `applyEffect(kind
 `hitWeak(dmg)` · `surrender()` · `reset(typeId, pos, difficulty)` · `dispose()`
 
 Director: `spawnAt(typeId, pos, difficulty)` · `spawnHorde(centre, n, difficulty)` ·
-`update(dt, player, ctx)` · `refreshLists()` · `clear()` · `alive` · `getHittables()`
+`spawnTable()` · `setSpawnTable(t)` · `update(dt, player, ctx)` · `refreshLists()` ·
+`clear()` · `alive` · `getHittables()`
+
+`spawnTable()` returns `{ pool, maxAlive, spawnInterval, difficulty }` and
+`setSpawnTable(t)` applies a possibly-partial table and returns the one now in
+force. Both are what a campaign beat, a boss phase or a mod changes the horde
+with, instead of reaching into the director's fields. A value the director cannot
+honour — a non-finite number, a `maxAlive` outside 1–38, a pool naming an unknown
+enemy type — is ignored, never clamped and never thrown on.
 
 Director hooks: `onDeath` · `onGib` · `onSpawn` · `onSummon` · `onWeakBreak`
 
@@ -198,7 +206,8 @@ Installs: `bed` (double regen) · `stash` · `turret` · `forge` (scrap over tim
 `MISSIONS` (18) · `phasesOf(mission)` · `new Campaign(hooks)`
 
 `start(index)` · `bump(metric, n)` · `update(dt)` · `reach(x, z)` · `current` ·
-`currentPhase` · `index` · `phase` · `done` · `beat` · `beacon` · `beatPending`
+`currentPhase` · `index` · `phase` · `done` · `beat` · `beacon` · `beatPending` ·
+`beatSpawn` · `mergeSpawnTable(base, directive)`
 
 A mission is one metric and one goal, **or** a `phases` array — an ordered list of
 `{ brief, metric, goal }` — for an authored set-piece (missions 17 and 18). A phase
@@ -215,6 +224,17 @@ counter they can farm from anywhere. The beat fires once per phase entry, includ
 `start()`, and calls `hooks.onBeat({ mission, missionIndex, phase, text, at, radius })`.
 The placed objective is the HUD's existing waypoint (`hud.setWaypoint`), used when the
 HUD has one.
+
+A beat may also change the **world** (1.27.0), not only the player's place in it:
+`{ text, spawn: { pool?, maxAlive?, spawnInterval?, difficulty? } }` hands the phase a
+**partial** spawn table — `{ maxAlive: 22 }` means "more of them", not "forget the pool".
+`new Campaign({ world })` takes the object that receives it: anything with
+`spawnTable()` and `setSpawnTable(t)`, which `GameBase` passes as `this.director`. The
+table the phase opened with is put back when the phase closes, when its mission
+completes and when a new run starts, so one set-piece's escalation cannot follow the
+player into the next mission. A campaign with no `world` is not an error: the beat then
+reports `spawn: null` rather than a table it never applied. `onBeat`'s payload carries
+that same `spawn` field.
 
 Metrics: `kills` · `stashes` · `headshots` · `upgrades` · `bosses` · `seconds` ·
 `hordeKills` · `cores` · `crafts` · `extractions` · `defences` · `arrests`
