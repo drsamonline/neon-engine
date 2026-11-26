@@ -30,6 +30,8 @@ What is done, what is planned, and what is deliberately out of scope.
 - **Multi-phase set-piece missions** — missions 17 and 18 ("THE BREACH", "LAST LIGHT")
   are cleared in ordered phases, and a later phase's metric cannot advance an earlier
   one (`campaign.js` → `phasesOf`, `tests/campaign.cjs`)
+- **Live objective revision** — a beat can rewrite the objective a phase already handed
+  out, without editing the authored mission table (`campaign.js` → `revisePhase`)
 - Two-floor building interiors in the city: a slab at 3.3 m cut by a stairwell, an
   inside staircase within the controller's step limit, and loot that can only be
   reached from upstairs (`tests/world.cjs` asserts every one of those)
@@ -37,8 +39,9 @@ What is done, what is planned, and what is deliberately out of scope.
 
 ## Planned
 
-- More set-pieces, and authored beats inside a mission (a scripted event between phases,
-  not only a counter) — the phase engine is the seam they can now hang from
+- More set-pieces, and the authored CONTENT for beats inside a mission: the engine can
+  now rewrite a live objective (`revisePhase`) and spawn on a beat, but no shipped
+  mission triggers one yet — that needs a beat table and a set-piece that uses it
 
 ## Considered and rejected
 

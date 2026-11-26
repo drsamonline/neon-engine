@@ -197,14 +197,25 @@ Installs: `bed` (double regen) · `stash` · `turret` · `forge` (scrap over tim
 ### `campaign.js`
 `MISSIONS` (18) · `phasesOf(mission)` · `new Campaign(hooks)`
 
-`start(index)` · `bump(metric, n)` · `update(dt)` · `current` · `currentPhase` ·
-`index` · `phase` · `done`
+`start(index)` · `bump(metric, n)` · `update(dt)` · `revisePhase(patch)` ·
+`current` · `currentPhase` · `index` · `phase` · `done`
 
 A mission is one metric and one goal, **or** a `phases` array — an ordered list of
 `{ brief, metric, goal }` — for an authored set-piece (missions 17 and 18). A phase
 must be cleared before the next one counts; surplus carries into the next phase only
 when it is measured by the same metric. `hooks.missions` overrides the chain, which is
 how a test exercises a shape the shipped content does not contain.
+
+`revisePhase({ brief, metric, goal })` lets a live beat rewrite the objective the
+player is **already** being measured against — "hold the line" becomes "reach the
+van" without waiting for the next phase. Only the fields you pass change; the
+revision is filed as an overlay, so the authored mission table is never mutated and
+a restart starts from the authored text. A change of **metric** restarts progress
+from zero (events already counted belong to the objective that asked for them); a
+change of **goal** alone keeps it. It returns `false` and changes nothing when there
+is no live phase (not started, finished, or inside the hand-off gap) or when a field
+is invalid. Completion still happens in `update()`, so a revision that is already met
+pays out through the one path that pays out.
 
 Metrics: `kills` · `stashes` · `headshots` · `upgrades` · `bosses` · `seconds` ·
 `hordeKills` · `cores` · `crafts` · `extractions` · `defences` · `arrests`

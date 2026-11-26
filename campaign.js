@@ -94,18 +94,32 @@ export class Campaign {
     this.done = false;
     this.timer = 0;
     this._pending = null;
+    // Live revisions of the current phase, keyed `index:phase` (1.26.0). They are
+    // an OVERLAY, not an edit: the authored mission table is never mutated, so a
+    // beat that fires in one run cannot rewrite the objective the next run starts
+    // from. `start()` clears it, which is what makes a restart clean.
+    this._revised = new Map();
   }
 
   get current() { return this.missions[this.index] || null; }
 
-  /* The phase the player is being measured against right now. */
+  /* The phase the player is being measured against right now — the authored one,
+     with any live revision applied on top. */
   get currentPhase() {
     const m = this.current;
-    return m ? (phasesOf(m)[this.phase] || null) : null;
+    if (!m) return null;
+    const p = phasesOf(m)[this.phase] || null;
+    if (!p) return null;
+    const r = this._revised.get(this._phaseKey());
+    return r ? { ...p, ...r } : p;
   }
+
+  /* One live phase, one overlay entry. */
+  _phaseKey() { return `${this.index}:${this.phase}`; }
 
   start(index = 0) {
     this._clearPending();
+    this._revised.clear();
     this.index = Math.max(0, Math.min(this.missions.length - 1, index));
     this.active = true; this.done = false;
     this._enter();
@@ -150,12 +164,7 @@ export class Campaign {
     let p = this.currentPhase;
     if (p.metric === 'seconds') this.progress += dt;
 
-    if (this.hud) {
-      const shown = p.metric === 'seconds'
-        ? `${Math.floor(this.progress)}s / ${p.goal}s`
-        : `${Math.min(Math.floor(this.progress), p.goal)} / ${p.goal}`;
-      this.hud.setObjective(this._label(m), `${p.brief}   (${shown})`);
-    }
+    if (this.hud) this.hud.setObjective(this._label(m), `${p.brief}   (${this._progressText(p)})`);
 
     // A phase may be over-satisfied by one big frame (or by a bump of 99), and a
     // set-piece has several phases, so this is a loop and not an `if`.
@@ -168,9 +177,10 @@ export class Campaign {
         // counting them again would let a "kill 10, then land 5 headshots"
         // set-piece be satisfied by ten headshot kills.
         const overflow = this.progress - p.goal;
+        const closedMetric = p.metric;
         this.phase++;
         p = this.currentPhase;
-        this.progress = p.metric === phases[this.phase - 1].metric ? Math.max(0, overflow) : 0;
+        this.progress = p.metric === closedMetric ? Math.max(0, overflow) : 0;
         if (this.hud) {
           this.hud.banner(`PHASE ${this.phase + 1}/${phases.length}`, p.brief);
           this.hud.setObjective(this._label(m), p.brief);
@@ -192,6 +202,68 @@ export class Campaign {
       }, this.stepDelay);
       return;
     }
+  }
+
+  /* The count the HUD shows for a phase. One formatter, so `update()` and a live
+     revision can never print two different readings of the same progress. */
+  _progressText(p) {
+    return p.metric === 'seconds'
+      ? `${Math.floor(this.progress)}s / ${p.goal}s`
+      : `${Math.min(Math.floor(this.progress), p.goal)} / ${p.goal}`;
+  }
+
+  /**
+   * A live beat rewrites the objective the player is ALREADY being measured
+   * against (1.26.0) — "hold the line" becomes "get to the van" without waiting
+   * for the next phase.
+   *
+   * `revisePhase({ brief, metric, goal })` changes only the fields it is given
+   * and files them as an overlay on the current phase, so the HUD, `currentPhase`
+   * and the mission table keep reading one object and the authored table is never
+   * mutated. Returns `true` when a revision was applied.
+   *
+   * Progress follows the same rule as a phase hand-off: a change of METRIC starts
+   * the new objective from zero, because events already counted were counted for
+   * the objective that asked for them; a change of GOAL alone keeps progress, so
+   * tightening a goal cannot be dodged by having already made progress.
+   *
+   * It refuses, changing nothing, when there is no live phase to revise (not
+   * started, finished, or inside the hand-off gap), and when a field is invalid
+   * (`goal` must be a positive finite number, `brief`/`metric` non-empty strings).
+   * Completion is left to `update()`, so a revision that is already met still
+   * pays out through the one path that pays out.
+   */
+  revisePhase(patch = {}) {
+    if (!this.active || this.done) return false;
+    if (this._pending !== null) return false;
+    const m = this.current;
+    if (!m || !phasesOf(m)[this.phase]) return false;
+    if (!patch || typeof patch !== 'object') return false;
+
+    const next = {};
+    if (patch.brief !== undefined) {
+      if (typeof patch.brief !== 'string' || !patch.brief.trim()) return false;
+      next.brief = patch.brief;
+    }
+    if (patch.goal !== undefined) {
+      if (typeof patch.goal !== 'number' || !Number.isFinite(patch.goal) || patch.goal <= 0) return false;
+      next.goal = patch.goal;
+    }
+    if (patch.metric !== undefined) {
+      if (typeof patch.metric !== 'string' || !patch.metric.trim()) return false;
+      next.metric = patch.metric;
+    }
+    if (!Object.keys(next).length) return false;
+
+    const key = this._phaseKey();
+    const metricChanged = next.metric !== undefined && next.metric !== this.currentPhase.metric;
+    this._revised.set(key, { ...(this._revised.get(key) || {}), ...next });
+    if (metricChanged) this.progress = 0;
+    if (this.hud) {
+      const p = this.currentPhase;
+      this.hud.setObjective(this._label(m), `${p.brief}   (${this._progressText(p)})`);
+    }
+    return true;
   }
 
   _finish() {

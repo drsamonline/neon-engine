@@ -3,6 +3,44 @@
 All notable changes to the Neon Engine and its games.
 Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://semver.org/).
 
+## [1.26.0] — 2026-11-26
+
+### Added — a beat can rewrite the objective a phase already handed out
+
+The roadmap's open item was *"authored beats inside a mission (a scripted event between
+phases, not only a counter)"*. Set-pieces (1.25.0) gave a beat several objectives in
+order; nothing could change the one the player was already being measured against, so
+a beat that fires mid-phase had to wait for a phase boundary it may never reach.
+
+- `Campaign.revisePhase({ brief, metric, goal })` rewrites the **live** phase. Only the
+  fields passed change, and the HUD is repainted immediately, so the player never
+  reads an objective the beat has already abandoned.
+- The revision is an **overlay** keyed `index:phase`, not an edit to the mission table:
+  authored content is never mutated, and `start()` clears the overlay, so a restart
+  begins from the authored brief. A beat that fires in one run cannot rewrite the next.
+- Progress follows the hand-off rule: a change of **metric** restarts from zero (those
+  events were counted for the objective that asked for them); a change of **goal**
+  alone keeps progress, so tightening a goal is not dodged by progress already made.
+- It refuses, changing nothing, when there is no live phase — not started, finished, or
+  inside the 2.2 s hand-off gap — and when a field is invalid (`goal` must be a finite
+  number > 0, `brief`/`metric` non-empty strings). Completion is left to `update()`, so
+  a revision that is already satisfied still pays out through the one path that pays.
+- `_progressText(p)` is now the single formatter behind both `update()` and a revision,
+  so the two cannot print different readings of the same progress.
+
+### Fixed — surplus carried against the authored metric, not the one the phase measured
+
+The hand-off compared the next phase's metric with the *authored* metric of the phase
+just closed. Once a revision can change a phase's metric those two differ, and surplus
+earned under the revised metric would have been carried into a phase that does not
+count it — exactly the double-count the 1.25.0 rule exists to prevent. It now compares
+against the metric the closed phase actually measured.
+
+`tests/campaign.cjs` grew from 81 to **98** assertions. Five mutations each turn it red:
+dropping the metric-reset, ignoring the overlay, mutating the authored table instead of
+overlaying it, restoring the old surplus comparison, and accepting a revision inside the
+hand-off gap.
+
 ## [1.25.0] — 2026-11-18
 
 ### Added — set-piece missions: a mission can be a sequence, not only a counter

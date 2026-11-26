@@ -243,6 +243,119 @@ async function main() {
     crossMetric.phase === 1 && crossMetric.progress === 0,
     `phase ${crossMetric.phase}, progress ${crossMetric.progress} (expected 1 and 0)`);
 
+  // ---- 6. a live beat rewrites the objective already handed out (1.26.0) ----
+  // The seam the roadmap named: an authored beat inside a mission. The property
+  // under test is that a revision changes what the player is measured against
+  // NOW, and does it without editing the authored mission table.
+  const seen = [];
+  const hudStub = {
+    banner: () => {},
+    setObjective: (label, line) => seen.push({ label, line }),
+  };
+  const beat = new Campaign({
+    stepDelay: 0, hud: hudStub,
+    missions: [{ id: 'b', title: 'BEAT', brief: 'b', reward: 10, phases: [
+      { brief: 'hold the line', metric: 'kills', goal: 10 },
+      { brief: 'get out', metric: 'extractions', goal: 1 },
+    ] }],
+  });
+  const authoredBefore = JSON.stringify(beat.missions);
+
+  ok('revisePhase() refuses before the campaign has started', beat.revisePhase({ goal: 3 }) === false,
+    'a revision with no live phase must not be filed');
+  beat.start();
+  beat.bump('kills', 4);
+  beat.update(0);
+
+  const revised = beat.revisePhase({ brief: 'reach the van', goal: 6 });
+  ok('revisePhase() applies a brief + goal change to the live phase', revised === true,
+    'revisePhase returned false on a live phase');
+  ok('the player now reads the revised brief', beat.currentPhase.brief === 'reach the van',
+    `currentPhase.brief is ${beat.currentPhase.brief}`);
+  ok('a goal-only revision keeps the progress already made', beat.progress === 4,
+    `progress reset to ${beat.progress} by a revision that did not change the metric`);
+  ok('the HUD is repainted with the revised brief immediately',
+    seen.length > 0 && seen[seen.length - 1].line.startsWith('reach the van'),
+    `last objective line: ${seen.length ? seen[seen.length - 1].line : '(none)'}`);
+  ok('a revision does NOT edit the authored mission table',
+    JSON.stringify(beat.missions) === authoredBefore,
+    'the shipped/content table was mutated, so the next run would start from the revised text');
+
+  beat.bump('kills', 2); beat.update(0);
+  ok('the revised goal is what completes the phase, and it completes on update()',
+    beat.phase === 1 && beat.progress === 0,
+    `phase ${beat.phase}, progress ${beat.progress} (expected 1 and 0)`);
+
+  // A change of metric starts the new objective from zero: those kills belong to
+  // the objective that asked for them.
+  const swap = new Campaign({ stepDelay: 0, missions: [{ id: 's', title: 'S', brief: 's', reward: 5,
+    phases: [{ brief: 'a', metric: 'kills', goal: 10 }, { brief: 'b', metric: 'extractions', goal: 1 }] }] });
+  swap.start();
+  swap.bump('kills', 7);
+  swap.revisePhase({ metric: 'headshots', goal: 3 });
+  ok('a change of metric resets progress to zero', swap.progress === 0,
+    `progress is ${swap.progress} after the metric changed`);
+  swap.bump('kills', 5);
+  ok('the old metric no longer advances the revised phase', swap.progress === 0,
+    `a kill added ${swap.progress} to a headshot objective`);
+  swap.bump('headshots', 3); swap.update(0);
+  ok('the new metric is what advances it', swap.phase === 1,
+    `phase is ${swap.phase} after 3 headshots on a goal of 3`);
+
+  // Surplus carries only within one metric — against the metric the CLOSED phase
+  // actually measured, which is the revised one when a beat rewrote it.
+  const carry = new Campaign({ stepDelay: 0, missions: [{ id: 'c', title: 'C', brief: 'c', reward: 5,
+    phases: [{ brief: 'a', metric: 'kills', goal: 10 }, { brief: 'b', metric: 'kills', goal: 10 }] }] });
+  carry.start();
+  carry.revisePhase({ metric: 'headshots' });
+  carry.bump('headshots', 12); carry.update(0);
+  ok('surplus does not carry into a phase measured by the metric the revision replaced',
+    carry.phase === 1 && carry.progress === 0,
+    `phase ${carry.phase}, progress ${carry.progress} (expected 1 and 0 — those were headshots, not kills)`);
+
+  // Invalid input is refused and changes nothing.
+  const bad = new Campaign({ stepDelay: 0, missions: [{ id: 'z', title: 'Z', brief: 'z', reward: 1,
+    metric: 'kills', goal: 10 }] });
+  bad.start();
+  bad.bump('kills', 2);
+  const badResults = [
+    bad.revisePhase({ goal: 0 }), bad.revisePhase({ goal: -4 }), bad.revisePhase({ goal: NaN }),
+    bad.revisePhase({ goal: '5' }), bad.revisePhase({ brief: '   ' }), bad.revisePhase({ metric: '' }),
+    bad.revisePhase({}), bad.revisePhase(),
+  ];
+  ok('every invalid revision is refused', badResults.every((r) => r === false),
+    `results ${JSON.stringify(badResults)}`);
+  ok('a refused revision leaves the phase and the progress untouched',
+    bad.currentPhase.goal === 10 && bad.currentPhase.metric === 'kills' && bad.progress === 2,
+    `goal ${bad.currentPhase.goal}, metric ${bad.currentPhase.metric}, progress ${bad.progress}`);
+
+  // A revision is per run: restarting drops it, and a finished campaign refuses one.
+  bad.revisePhase({ brief: 'still here' });
+  bad.start();
+  ok('a restart drops the revision, so the next run starts from the authored brief',
+    bad.currentPhase.brief === 'z', `brief after restart is ${bad.currentPhase.brief}`);
+
+  // No revision is accepted during the hand-off gap, when the next mission has not
+  // been handed out yet.
+  const gap = new Campaign({ stepDelay: 40, missions: [
+    { id: 'g1', title: 'G1', brief: 'g1', reward: 1, metric: 'kills', goal: 1 },
+    { id: 'g2', title: 'G2', brief: 'g2', reward: 1, metric: 'kills', goal: 1 },
+  ] });
+  gap.start();
+  gap.bump('kills', 1); gap.update(0);
+  ok('a revision is refused inside the hand-off gap',
+    gap.index === 1 && gap.revisePhase({ brief: 'too early' }) === false,
+    `index ${gap.index}, revisePhase returned ${gap.revisePhase({ brief: 'x' })}`);
+  await flush(60);
+  ok('the next mission starts from its authored brief', gap.currentPhase.brief === 'g2',
+    `brief is ${gap.currentPhase.brief}`);
+
+  const finished = new Campaign({ stepDelay: 0, missions: [
+    { id: 'f', title: 'F', brief: 'f', reward: 1, metric: 'kills', goal: 1 }] });
+  finished.start(); finished.bump('kills', 1); finished.update(0); await flush();
+  ok('a finished campaign refuses a revision', finished.done && finished.revisePhase({ goal: 5 }) === false,
+    `done ${finished.done}`);
+
   // ---- report -----------------------------------------------------------
   if (failures.length) {
     console.error('campaign test FAILED — ' + failures.length + ' failing, ' + pass + ' passing');
