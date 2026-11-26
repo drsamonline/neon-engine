@@ -3,7 +3,13 @@
 All notable changes to the Neon Engine and its games.
 Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://semver.org/).
 
-## [1.26.0] — 2026-11-26
+## [1.25.1] — 2026-11-26
+
+> **Numbered 1.25.1, not 1.26.0, on purpose.** `1.26.0` and `1.27.0` are already
+> claimed by the open PRs #5 (authored beats) and #6 (a beat that changes the world),
+> which are stacked on each other and not yet on `main`. This change is a patch on
+> `main`'s 1.25.0 engine, so it takes the next patch number; when #5 and #6 land, this
+> is the base they rebase onto.
 
 ### Added — a beat can rewrite the objective a phase already handed out
 
