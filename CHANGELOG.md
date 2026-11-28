@@ -3,6 +3,52 @@
 All notable changes to the Neon Engine and its games.
 Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://semver.org/).
 
+## [1.25.2] — 2026-11-28
+
+> A patch on `main`'s 1.25.1 engine. `1.26.0` and `1.27.0` are still claimed by the
+> open PRs #5 and #6, so this takes the next patch number; when they land, this is the
+> base they rebase onto.
+
+### Added — a phase can schedule its own revision
+
+`revisePhase()` shipped in 1.25.1 with nothing hanging from it: no shipped mission
+called it, so no player had ever seen an objective change mid-phase, and a content
+author had no way to write one.
+
+- A phase may now carry `revise: { after, brief, metric, goal }`. `update()` applies it
+  once the phase has been **live for `after` seconds** — the same frame clock the
+  mission already runs on, so a paused or slow frame cannot fire it early, and nothing
+  outside has to call `revisePhase()` or know a beat exists.
+- It runs **through** `revisePhase()`, not beside it, so the overlay, the validation,
+  the progress rule (a metric change restarts from zero, a goal change keeps progress)
+  and the HUD repaint are the one path that already exists.
+- It fires **once per phase per run**: the clock is reset by `_enter()` and by every
+  phase hand-off, so a phase-2 beat is measured from the hand-off and not from the run,
+  and `start()` re-arms it so the next run is not born revised.
+- An unusable `after` (not a finite number) is **inert, never immediate** — a content
+  typo must not fire a beat on the first frame and read as a working feature.
+- `tests/campaign.cjs` asserts every shipped spec is well formed, so a malformed beat
+  fails the build instead of failing silently.
+- **THE BREACH** (mission 17) is the first authored beat on a clock: 30 s into phase 1
+  the alarm goes and the perimeter asks for **25 kills instead of 15**, keeping the
+  kills already made — tightening a goal cannot be dodged by progress in hand.
+
+### Fixed — a frame inside the hand-off gap completed the next mission for free
+
+When a mission cleared, `index` moved on immediately but `_enter()` waited out the
+2.2 s hand-off gap, and `update()` kept running in between with the **closed** mission's
+`progress` and `phase` read against the **next** mission's goal. In play, mission 1
+("FIRST CONTACT", 8 kills) paid out mission 2 ("SUPPLY RUN", goal 2 stashes) on the
+very next frame: measured before the fix, `rewards` was `[200, 300]` with nothing
+collected. `update()` now returns while a hand-off is pending, because during the gap
+there is no live phase to measure.
+
+Proof: `tests/campaign.cjs` **98 → 124 assertions**, 26 of them new, and **eight
+mutations of the shipped code are all red** — gap guard removed, tick never called,
+unusable `after` fires immediately, clock not reset on a phase hand-off, beat
+re-applies every frame, restart does not re-arm, the scheduled beat bypassing
+`revisePhase()`, and the clock not reset on entry.
+
 ## [1.25.1] — 2026-11-26
 
 > **Numbered 1.25.1, not 1.26.0, on purpose.** `1.26.0` and `1.27.0` are already

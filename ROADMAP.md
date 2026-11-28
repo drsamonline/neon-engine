@@ -32,6 +32,11 @@ What is done, what is planned, and what is deliberately out of scope.
   one (`campaign.js` → `phasesOf`, `tests/campaign.cjs`)
 - **Live objective revision** — a beat can rewrite the objective a phase already handed
   out, without editing the authored mission table (`campaign.js` → `revisePhase`)
+- **A beat on a clock** — a phase carries `revise: { after, … }` and `update()` applies
+  it when its time arrives; THE BREACH's first phase tightens from 15 kills to 25 after
+  30 s, keeping the kills already made (`campaign.js` → `_tickRevision`)
+- **The hand-off gap has no live phase** — `update()` cannot complete the next mission
+  with the closed one's progress (`tests/campaign.cjs` section 8)
 - Two-floor building interiors in the city: a slab at 3.3 m cut by a stairwell, an
   inside staircase within the controller's step limit, and loot that can only be
   reached from upstairs (`tests/world.cjs` asserts every one of those)

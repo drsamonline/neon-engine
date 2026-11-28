@@ -356,6 +356,221 @@ async function main() {
   ok('a finished campaign refuses a revision', finished.done && finished.revisePhase({ goal: 5 }) === false,
     `done ${finished.done}`);
 
+  // ---- 7. a phase can schedule its own revision (1.25.2) -----------------
+  // `revisePhase()` is a seam with nothing hanging from it unless content can
+  // name a beat, so a phase now carries `revise: { after, brief, metric, goal }`
+  // and `update()` applies it when its time arrives. Two things are checked
+  // first: that the shipped specs are well formed (an unusable `after` is inert,
+  // so a bad spec would be SILENT rather than loud), and that the one shipped
+  // beat does what its row says.
+
+  const scheduled = MISSIONS.flatMap((m) => phasesOf(m).filter((p) => p.revise));
+  ok('the chain ships a phase whose revision is on a clock', scheduled.length >= 1,
+    'no phase carries a `revise` spec, so nothing hangs from revisePhase() and no player ever sees an objective change');
+
+  const specProblems = [];
+  for (const p of scheduled) {
+    const r = p.revise;
+    if (!Number.isFinite(r.after) || r.after <= 0) specProblems.push(`after ${JSON.stringify(r.after)}`);
+    if (r.brief !== undefined && (typeof r.brief !== 'string' || !r.brief.trim())) specProblems.push('brief');
+    if (r.metric !== undefined && (typeof r.metric !== 'string' || !r.metric.trim())) specProblems.push('metric');
+    if (r.goal !== undefined && (typeof r.goal !== 'number' || !Number.isFinite(r.goal) || r.goal <= 0)) specProblems.push('goal');
+    if (r.brief === undefined && r.metric === undefined && r.goal === undefined) specProblems.push('changes nothing');
+  }
+  ok('every shipped scheduled revision is well formed', specProblems.length === 0,
+    `bad field(s): ${specProblems.join(', ')}`);
+
+  // The beat fires on the frame clock, not on wall time: a slow frame must not
+  // fire it early, and no frame must fire it twice.
+  const schedLines = [];
+  const sched = new Campaign({
+    stepDelay: 0, hud: { banner() {}, setObjective: (l, s) => schedLines.push(s) },
+    missions: [{ id: 'sch', title: 'SCHED', brief: 'sch', reward: 5, phases: [
+      { brief: 'hold', metric: 'kills', goal: 10, revise: { after: 2, brief: 'reach the van', goal: 4 } },
+      { brief: 'out', metric: 'extractions', goal: 1 },
+    ] }],
+  });
+  const schedAuthored = JSON.stringify(sched.missions);
+  sched.start();
+  sched.bump('kills', 3);
+  sched.update(1.5);
+  ok('a scheduled revision has not fired before its time',
+    sched.currentPhase.brief === 'hold' && sched.currentPhase.goal === 10,
+    `brief "${sched.currentPhase.brief}", goal ${sched.currentPhase.goal} at 1.5 s of a 2 s beat`);
+  sched.update(0.6);
+  ok('it fires on the frame that reaches its time',
+    sched.currentPhase.brief === 'reach the van' && sched.currentPhase.goal === 4,
+    `brief "${sched.currentPhase.brief}", goal ${sched.currentPhase.goal} at 2.1 s of a 2 s beat`);
+  ok('a scheduled goal-only revision keeps the progress already made', sched.progress === 3,
+    `progress is ${sched.progress} — tightening a goal must not be dodged by progress in hand`);
+  ok('a scheduled revision does not edit the authored mission table',
+    JSON.stringify(sched.missions) === schedAuthored,
+    'the shipped/content table was mutated, so the next run would start from the revised text');
+  ok('the HUD is repainted with the scheduled brief',
+    schedLines.some((s) => s.startsWith('reach the van')),
+    `no objective line began with the revised brief; last: ${schedLines[schedLines.length - 1]}`);
+
+  sched.bump('kills', 1); sched.update(0);
+  ok('the tightened goal is what completes the phase', sched.phase === 1 && sched.progress === 0,
+    `phase ${sched.phase}, progress ${sched.progress} (expected 1 and 0 after 4 kills on a goal of 4)`);
+
+  // Fires exactly once: counted at the seam, because a repaint per frame looks
+  // identical from the HUD.
+  let schedCalls = 0;
+  const onceCampaign = new Campaign({
+    stepDelay: 0, hud: { banner() {}, setObjective() {} },
+    missions: [{ id: 'once', title: 'ONCE', brief: 'once', reward: 1, phases: [
+      { brief: 'hold', metric: 'kills', goal: 100, revise: { after: 1, brief: 'hold on' } },
+      { brief: 'out', metric: 'extractions', goal: 1 },
+    ] }],
+  });
+  const realRevise = onceCampaign.revisePhase.bind(onceCampaign);
+  onceCampaign.revisePhase = (patch) => { schedCalls++; return realRevise(patch); };
+  onceCampaign.start();
+  for (let i = 0; i < 10; i++) onceCampaign.update(1);
+  ok('a scheduled revision fires exactly once per phase', schedCalls === 1,
+    `revisePhase() was called ${schedCalls} times over 10 s of frames for one 1 s beat`);
+  ok('the clock keeps running but the beat does not re-apply',
+    onceCampaign.currentPhase.brief === 'hold on' && onceCampaign.progress === 0,
+    `brief "${onceCampaign.currentPhase.brief}", progress ${onceCampaign.progress}`);
+
+  // A beat is measured from the phase hand-off, not from the run: a phase 2 beat
+  // that fires 3 s in must not be fired by the 9.5 s already spent in phase 1.
+  const phaseClock = new Campaign({
+    stepDelay: 0, hud: { banner() {}, setObjective() {} },
+    missions: [{ id: 'pc', title: 'PC', brief: 'pc', reward: 1, phases: [
+      { brief: 'a', metric: 'kills', goal: 5, revise: { after: 10, brief: 'a2' } },
+      { brief: 'b', metric: 'kills', goal: 5, revise: { after: 3, brief: 'b2' } },
+    ] }],
+  });
+  phaseClock.start();
+  phaseClock.update(9.5);
+  phaseClock.bump('kills', 5);
+  phaseClock.update(0);                       // phase 1 clears at 9.5 s; the clock restarts
+  phaseClock.update(2.5);
+  ok('a phase 2 beat is not fired by the time spent in phase 1',
+    phaseClock.phase === 1 && phaseClock.currentPhase.brief === 'b',
+    `phase ${phaseClock.phase}, brief "${phaseClock.currentPhase.brief}" at 2.5 s into phase 2`);
+  phaseClock.update(1);
+  ok('and it fires once its own phase has been live that long', phaseClock.currentPhase.brief === 'b2',
+    `brief "${phaseClock.currentPhase.brief}" at 3.5 s into phase 2`);
+
+  // The same rule one level up: a beat in the NEXT mission is measured from that
+  // mission's start, not from the time the last one had already run.
+  const nextMission = new Campaign({
+    stepDelay: 0, hud: { banner() {}, setObjective() {} },
+    missions: [
+      { id: 'n1', title: 'N1', brief: 'n1', reward: 1, phases: [
+        { brief: 'one', metric: 'kills', goal: 2, revise: { after: 5, brief: 'one-tight' } }] },
+      { id: 'n2', title: 'N2', brief: 'n2', reward: 1, phases: [
+        { brief: 'two', metric: 'kills', goal: 10, revise: { after: 3, brief: 'two-tight' } }] },
+    ],
+  });
+  nextMission.start();
+  nextMission.update(6);                       // 6 s into mission 1; its own beat fired at 5
+  nextMission.bump('kills', 2);
+  nextMission.update(0);                       // mission 1 clears
+  await flush();                               // _enter() hands out mission 2
+  nextMission.update(0);
+  ok('a beat in the next mission is measured from that mission\'s own start',
+    nextMission.current && nextMission.current.id === 'n2' && nextMission.currentPhase.brief === 'two',
+    `mission ${nextMission.current && nextMission.current.id}, brief "${nextMission.currentPhase.brief}"`);
+  nextMission.update(3);
+  ok('and it fires once its own mission has been live that long',
+    nextMission.currentPhase.brief === 'two-tight',
+    `brief "${nextMission.currentPhase.brief}" 3 s into mission 2`);
+
+  // A restart re-arms it: the run that comes after must not be born revised.
+  sched.start();
+  ok('a restart puts the authored objective back',
+    sched.currentPhase.brief === 'hold' && sched.currentPhase.goal === 10,
+    `brief "${sched.currentPhase.brief}", goal ${sched.currentPhase.goal} after a restart`);
+  sched.update(2);
+  ok('the beat fires again in the next run', sched.currentPhase.brief === 'reach the van',
+    `brief "${sched.currentPhase.brief}" after 2 s of the restarted run`);
+
+  // A scheduled change of METRIC follows the revision rule: those events were
+  // counted for the objective that asked for them, so progress restarts.
+  const schedSwap = new Campaign({
+    stepDelay: 0, hud: { banner() {}, setObjective() {} },
+    missions: [{ id: 'ss', title: 'SS', brief: 'ss', reward: 1, phases: [
+      { brief: 'a', metric: 'kills', goal: 10, revise: { after: 1, metric: 'headshots', goal: 3 } },
+      { brief: 'b', metric: 'extractions', goal: 1 },
+    ] }],
+  });
+  schedSwap.start();
+  schedSwap.bump('kills', 5);
+  schedSwap.update(1);
+  ok('a scheduled change of metric restarts progress from zero', schedSwap.progress === 0,
+    `progress is ${schedSwap.progress} after the metric changed`);
+  schedSwap.bump('kills', 5);
+  ok('the replaced metric no longer advances the scheduled objective', schedSwap.progress === 0,
+    `a kill added ${schedSwap.progress} to a headshot objective`);
+
+  // A spec whose time is unusable is INERT, not immediate — otherwise a content
+  // typo would fire a beat on the first frame and read as a working feature.
+  const inert = new Campaign({
+    stepDelay: 0, hud: { banner() {}, setObjective() {} },
+    missions: [{ id: 'in', title: 'IN', brief: 'in', reward: 1, phases: [
+      { brief: 'still here', metric: 'kills', goal: 10, revise: { after: 'soon', brief: 'too early' } },
+    ] }],
+  });
+  inert.start();
+  inert.update(1000);
+  ok('a scheduled revision with no usable time never fires', inert.currentPhase.brief === 'still here',
+    `brief "${inert.currentPhase.brief}" after 1000 s — an unusable \`after\` must be inert, not immediate`);
+
+  // THE BREACH is the one shipped beat, and the row names it: phase 1 tightens
+  // from 15 kills to 25 after 30 s, keeping the kills already made.
+  const breach = MISSIONS.find((m) => m.id === 'm17');
+  ok('the shipped set-piece THE BREACH carries the beat', !!breach && !!phasesOf(breach)[0].revise,
+    'mission 17 has no scheduled revision on its first phase');
+  if (breach) {
+    const bc = new Campaign({ stepDelay: 0, hud: { banner() {}, setObjective() {} } });
+    bc.start(MISSIONS.indexOf(breach));
+    bc.bump('kills', 10);
+    bc.update(29);
+    const beforeGoal = bc.currentPhase.goal;
+    bc.update(2);
+    ok('THE BREACH tightens its first phase once 30 s have passed',
+      beforeGoal === 15 && bc.currentPhase.goal === 25,
+      `goal ${beforeGoal} at 29 s, ${bc.currentPhase.goal} at 31 s (expected 15 then 25)`);
+    ok('and the ten kills already made still count against the tighter goal', bc.progress === 10,
+      `progress is ${bc.progress}`);
+  }
+
+  // ---- 8. the hand-off gap has no live phase (1.25.2) --------------------
+  // `index` moves on the frame a mission clears but `_enter()` waits 2.2 s, and
+  // `update()` kept running in between with the CLOSED mission's progress read
+  // against the NEXT mission's goal. In play that paid out mission 2 "SUPPLY
+  // RUN" (goal 2) on the frame after mission 1's 8 kills — measured before the
+  // fix, rewards [200, 300] with nothing collected.
+  const gapRewards = [];
+  const gapFrames = new Campaign({ stepDelay: 2200, onReward: (r) => gapRewards.push(r) });
+  gapFrames.start();
+  gapFrames.bump('kills', 8);
+  gapFrames.update(0);
+  for (let i = 0; i < 20; i++) gapFrames.update(0.1);      // 2 s of frames inside the gap
+  ok('a frame inside the hand-off gap cannot complete the next mission',
+    gapFrames.index === 1 && JSON.stringify(gapRewards) === JSON.stringify([200]),
+    `index ${gapFrames.index}, rewards ${JSON.stringify(gapRewards)} — the gap paid out a mission nobody played`);
+  ok('and it cannot move the progress of a mission not yet handed out', gapFrames.progress === 8,
+    `progress is ${gapFrames.progress} during the gap (expected the closed mission's 8, untouched)`);
+  await flush(60);
+  // The hand-off itself still works, and still starts the next mission clean.
+  const gapShort = new Campaign({ stepDelay: 40, onReward: (r) => gapRewards.push(r) });
+  gapShort.start();
+  gapShort.bump('kills', 8);
+  gapShort.update(0);
+  gapShort.update(0.016); gapShort.update(0.016);     // frames inside the 40 ms gap
+  await flush(80);
+  ok('the next mission still starts from zero once the gap ends',
+    gapShort.current && gapShort.current.id === 'm2' && gapShort.progress === 0 && gapShort.phase === 0,
+    `mission ${gapShort.current && gapShort.current.id}, progress ${gapShort.progress}, phase ${gapShort.phase} after the hand-off`);
+  ok('and the gap paid out only the mission that was actually played',
+    JSON.stringify(gapRewards) === JSON.stringify([200, 200]),
+    `rewards ${JSON.stringify(gapRewards)} (expected two runs of mission 1 and nothing else)`);
+
   // ---- report -----------------------------------------------------------
   if (failures.length) {
     console.error('campaign test FAILED — ' + failures.length + ' failing, ' + pass + ' passing');
