@@ -33,7 +33,11 @@ export const MISSIONS = [
     id: 'm17', title: 'THE BREACH', reward: 2500,
     brief: 'A set-piece: get in, break the thing, get out.',
     phases: [
-      { brief: 'Breach the perimeter — 15 down.', metric: 'kills', goal: 15 },
+      // The first authored beat on a clock (1.25.2): 30 s in, the alarm goes and
+      // the perimeter asks for more. A goal-only revision keeps the kills already
+      // made, so tightening it cannot be dodged by progress in hand.
+      { brief: 'Breach the perimeter — 15 down.', metric: 'kills', goal: 15,
+        revise: { after: 30, brief: 'Alarm up — 25 down before the door seals.', goal: 25 } },
       { brief: 'Destroy the core it guards.', metric: 'cores', goal: 1 },
       { brief: 'Leave with it.', metric: 'extractions', goal: 1 },
     ],
@@ -99,6 +103,12 @@ export class Campaign {
     // beat that fires in one run cannot rewrite the objective the next run starts
     // from. `start()` clears it, which is what makes a restart clean.
     this._revised = new Map();
+    // Seconds the CURRENT phase has been live, and the phases whose scheduled
+    // revision has already fired (1.25.2). Both are per run: `_enter()` clears
+    // them, and a phase hand-off clears the clock, so `revise.after` is measured
+    // from the moment the player was handed that objective and not from the run.
+    this._phaseClock = 0;
+    this._reviseFired = new Set();
   }
 
   get current() { return this.missions[this.index] || null; }
@@ -120,6 +130,8 @@ export class Campaign {
   start(index = 0) {
     this._clearPending();
     this._revised.clear();
+    this._phaseClock = 0;
+    this._reviseFired.clear();
     this.index = Math.max(0, Math.min(this.missions.length - 1, index));
     this.active = true; this.done = false;
     this._enter();
@@ -143,6 +155,7 @@ export class Campaign {
     const m = this.current;
     if (!m) { this._finish(); return; }
     this.progress = 0; this.timer = 0; this.phase = 0;
+    this._phaseClock = 0;
     if (this.hud) {
       this.hud.banner(m.title, m.brief);
       this.hud.setObjective(this._label(m), this.currentPhase.brief);
@@ -159,8 +172,15 @@ export class Campaign {
 
   update(dt) {
     if (!this.active || this.done) return;
+    // Inside the 2.2 s hand-off gap there is NO live phase: `index` has already
+    // moved on but `_enter()` has not run, so `this.phase` and `this.progress`
+    // still belong to the mission just closed. Reading them against the next
+    // mission completed it for free — mission 2 "SUPPLY RUN" (goal 2) was paid
+    // out by mission 1's 8 kills on the very next frame (1.25.2).
+    if (this._pending !== null) return;
     const m = this.current; if (!m) return;
     const phases = phasesOf(m);
+    this._tickRevision(dt);
     let p = this.currentPhase;
     if (p.metric === 'seconds') this.progress += dt;
 
@@ -179,6 +199,7 @@ export class Campaign {
         const overflow = this.progress - p.goal;
         const closedMetric = p.metric;
         this.phase++;
+        this._phaseClock = 0;                 // the new phase's beat is measured from here
         p = this.currentPhase;
         this.progress = p.metric === closedMetric ? Math.max(0, overflow) : 0;
         if (this.hud) {
@@ -202,6 +223,38 @@ export class Campaign {
       }, this.stepDelay);
       return;
     }
+  }
+
+  /* A phase can schedule its OWN revision (1.25.2): `revise: { after, brief,
+     metric, goal }` is applied by `update()` once the phase has been live for
+     `after` seconds. Nothing outside has to call `revisePhase()`, and no game
+     loop has to know a beat exists — the clock is the frame clock the mission is
+     already on, so a paused or slow frame does not fire it early.
+
+     It runs THROUGH `revisePhase()` rather than beside it, so the overlay, the
+     validation, the progress rule (a metric change restarts, a goal change does
+     not) and the repaint are the one path that already exists; a second path
+     would be a second place for them to disagree.
+
+     Fires at most once per phase per run — `_reviseFired` holds the phases that
+     have fired, and both it and `_phaseClock` are cleared by `_enter()`/`start()`,
+     so a restart re-arms the beat and the next run is not born revised. An
+     unusable `after` (not a finite number) is INERT rather than immediate: a bad
+     spec must not fire on the first frame, and `tests/campaign.cjs` asserts every
+     shipped spec is valid so this can never be how a content bug reads. */
+  _tickRevision(dt) {
+    const m = this.current;
+    if (!m) return;
+    const authored = phasesOf(m)[this.phase];
+    if (!authored || !authored.revise) return;
+    const key = this._phaseKey();
+    if (this._reviseFired.has(key)) return;
+    const spec = authored.revise;
+    const after = Number.isFinite(spec.after) ? Math.max(0, spec.after) : Infinity;
+    this._phaseClock += Number.isFinite(dt) && dt > 0 ? dt : 0;
+    if (this._phaseClock < after) return;
+    this._reviseFired.add(key);
+    this.revisePhase({ brief: spec.brief, metric: spec.metric, goal: spec.goal });
   }
 
   /* The count the HUD shows for a phase. One formatter, so `update()` and a live

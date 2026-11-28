@@ -206,6 +206,11 @@ must be cleared before the next one counts; surplus carries into the next phase 
 when it is measured by the same metric. `hooks.missions` overrides the chain, which is
 how a test exercises a shape the shipped content does not contain.
 
+A phase may also carry `revise: { after, brief, metric, goal }` (1.25.2): `update()`
+applies it once the phase has been live for `after` seconds, through `revisePhase()`,
+so a beat can be authored instead of wired by the game. It fires once per phase per
+run; an unusable `after` never fires.
+
 `revisePhase({ brief, metric, goal })` lets a live beat rewrite the objective the
 player is **already** being measured against — "hold the line" becomes "reach the
 van" without waiting for the next phase. Only the fields you pass change; the
